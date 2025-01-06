@@ -20,6 +20,24 @@ pub enum addressing_mode{
    NoneAddressing,
 }
 
+pub struct opCode{
+    code: u8,
+    bytes: u8,
+    cycles: u8,
+    address_mode: addressing_mode
+}
+
+impl opCode{
+    pub fn new(opCodeNum: u8, bytesNum: u8, cyclesNum: u8, mode: addressing_mode) -> Self {
+        opCode{
+            code: opCodeNum,
+            bytes: bytesNum,
+            cycles: cyclesNum,
+            address_mode: mode
+        }
+    }
+}
+
 impl CPU{
     pub fn new() -> Self {
         CPU{
@@ -255,6 +273,36 @@ impl CPU{
                 //STA
                 0x85 => {
                     self.STA(&addressing_mode::ZeroPage);
+                    self.program_counter += 1;
+                }
+
+                0x95 => {
+                    self.STA(&addressing_mode::ZeroPage_X);
+                    self.program_counter += 1;
+                }
+
+                0x8D => {
+                    self.STA(&addressing_mode::Absolute);
+                    self.program_counter += 2;
+                }
+
+                0x9D => {
+                    self.STA(&addressing_mode::Absolute_X);
+                    self.program_counter += 2;
+                }
+
+                0x99 => {
+                    self.STA(&addressing_mode::Absolute_Y);
+                    self.program_counter += 2;
+                }
+
+                0x81 => {
+                    self.STA(&addressing_mode::Indirect_X);
+                    self.program_counter += 1;
+                }
+
+                0x91 => {
+                    self.STA(&addressing_mode::Indirect_Y);
                     self.program_counter += 1;
                 }
     
