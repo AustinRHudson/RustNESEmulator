@@ -233,10 +233,14 @@ impl CPU{
 
                 //STA
                 0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
-                    self.STA(&addressing_mode::ZeroPage);
-                    self.program_counter += 1;
+                    let opcode_object = opcode_map[&opcode];
+                    self.STA(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
-    
+                
+                //AND
+                
+
                 //ADC
                 0x69 => {
     
