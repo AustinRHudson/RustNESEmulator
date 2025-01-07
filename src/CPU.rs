@@ -26,6 +26,7 @@ pub enum addressing_mode{
    NoneAddressing,
    Accumulator,
    Relative,
+   Implied,
 }
 
 pub struct opCode{
@@ -82,6 +83,12 @@ lazy_static!{
         opCode::new(0x1E, 3, 7, addressing_mode::Absolute_X),
         //BCC
         opCode::new(0x90, 2, 2, addressing_mode::Relative),
+        //NOP
+        opCode::new(0xEA, 1, 2, addressing_mode::Implied),
+        //BRK
+        opCode::new(0x00, 1, 7, addressing_mode::Implied),
+        //INX
+        opCode::new(0xE8, 1, 2, addressing_mode::Implied),
     ];
     
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
