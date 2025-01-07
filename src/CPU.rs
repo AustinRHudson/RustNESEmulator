@@ -12,7 +12,7 @@ pub struct CPU{
     memory: [u8; 0xFFFF]
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq)]
 pub enum addressing_mode{
    Immediate,
    ZeroPage,
@@ -24,6 +24,8 @@ pub enum addressing_mode{
    Indirect_X,
    Indirect_Y,
    NoneAddressing,
+   Accumulator,
+   Relative,
 }
 
 pub struct opCode{
@@ -63,6 +65,23 @@ lazy_static!{
         opCode::new(0x99, 3, 5, addressing_mode::Absolute_Y),
         opCode::new(0x81, 2, 6, addressing_mode::Indirect_X),
         opCode::new(0x91, 2, 6, addressing_mode::Indirect_Y),
+        //AND
+        opCode::new(0x29, 2, 2, addressing_mode::Immediate),
+        opCode::new(0x25, 2, 3, addressing_mode::ZeroPage),
+        opCode::new(0x35, 2, 4, addressing_mode::ZeroPage_X),
+        opCode::new(0x2D, 3, 4, addressing_mode::Absolute),
+        opCode::new(0x3D, 3, 4, addressing_mode::Absolute_X),
+        opCode::new(0x39, 3, 4, addressing_mode::Absolute_Y),
+        opCode::new(0x21, 2, 6, addressing_mode::Indirect_X),
+        opCode::new(0x31, 2, 5, addressing_mode::Indirect_Y),
+        //ASL
+        opCode::new(0x0A, 1, 2, addressing_mode::Accumulator),
+        opCode::new(0x06, 2, 5, addressing_mode::ZeroPage),
+        opCode::new(0x16, 2, 6, addressing_mode::ZeroPage_X),
+        opCode::new(0x0E, 3, 6, addressing_mode::Absolute),
+        opCode::new(0x1E, 3, 7, addressing_mode::Absolute_X),
+        //BCC
+        opCode::new(0x90, 2, 2, addressing_mode::Relative),
     ];
     
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
@@ -211,10 +230,51 @@ impl CPU{
         self.memory_write(address, self.register_a);
     }
 
+    fn AND(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let value = self.memory_read(address);
+        self.register_a = self.register_a & value;
+        self.update_negative_zero_flags(self.register_a);
+    }
+
+    fn ASL(&mut self, mode: &addressing_mode){
+        let mut value: u8;
+        let mut address: u16 = 0;
+        if(*mode == addressing_mode::Accumulator){
+            value = self.register_a;
+        }else{
+            address = self.get_operand_address(mode);
+            value = self.memory_read(address);
+        }
+        self.status = (value >> 7) | (0b1111_1110 & self.status);
+        value = value << 1;
+        if(*mode == addressing_mode::Accumulator){
+            self.register_a = value;
+        }else{
+            self.memory_write(address, value);
+        }
+        println!("{}", "OVERHERE!!!");
+        self.update_negative_zero_flags(value);
+    }
+
+    fn BCC(&mut self){
+        if((0b0000_0001 & self.status) != 0b0000_0001){
+            let value: i8 = (self.memory_read(self.program_counter) as i8);
+            // println!("{}", (value as u16) >> 8);
+            println!("bcc pc preadd {:#x}", self.program_counter);
+            // self.program_counter += (value as u16);
+
+            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            println!("bcc pc postadd {:#x}", self.program_counter);
+        }
+        self.program_counter += 1;
+    }
+
     pub fn execute(&mut self){
         loop {
             let opcode = self.memory[self.program_counter as usize];
             self.program_counter += 1;
+            println!("op code {:#x}", opcode);
 
             match opcode {
                 //LDA
@@ -222,7 +282,6 @@ impl CPU{
                     let opcode_object = opcode_map[&opcode];
                     self.LDA(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                    println!("{}", opcode_object.bytes - 1);
                 }
 
                 //TAX
@@ -239,7 +298,35 @@ impl CPU{
                 }
                 
                 //AND
-                
+                0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.AND(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
+                //ASL
+                0x0A | 0x06 | 0x16 | 0x0E | 0x1E => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.ASL(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }   
+
+                //BCC
+                0x90 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.BCC();
+                }
+
+                //NOP
+                0xEA => {
+                   
+                }
+
+                //INX
+                 0xE8 => {
+                    self.register_x += 1;
+                    self.update_negative_zero_flags(self.register_x);
+                }
 
                 //ADC
                 0x69 => {
@@ -252,7 +339,7 @@ impl CPU{
                 }
     
                 _ => {
-                    todo!();
+                    todo!("ficinglol");
                 }
             }
         }
@@ -281,7 +368,42 @@ mod tests{
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![0xa9, 0x23, 0x8D, 0x05, 0x06]);
         assert_eq!(cpu.memory_read(0x0605), 0x23);
-        println!("{:?}", opcode_map[&0xa9].address_mode);
     }
+    #[test]
+    fn test_AND(){
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0xa9, 0x07, 0x8D, 0x05, 0x06, 0xa9, 0x07, 0x2D, 0x05, 0x06]);
+        assert_eq!(0b0000_0111, cpu.register_a);
+    }
+
+    #[test]
+    fn test_ASL(){
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0xa9, 0x04, 0x0A]);
+        assert_eq!(0b0000_1000, cpu.register_a);
+        println!("{}", cpu.register_a);
+    }
+
+    #[test]
+    fn test_pos_BCC(){
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0xEA, 0x90, 0x0D, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8]);
+        assert_eq!(cpu.register_x, 3);
+    }
+
+    #[test]
+    fn test_neg_BCC(){
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0x90, 0x04, 0xE8, 0xE8, 0x00, 0xEA, 0x90, 0xFA]);
+        assert_eq!(cpu.register_x, 2);
+        cpu.load_and_execute(vec![0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0x90, 0xED]);
+        assert_eq!(cpu.register_x, 0);
+    }
+    #[test]
+    fn test_loop(){
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0x90, 0x04, 0xE8, 0xE8, 0x00, 0xEA, 0x90, 0xFA]);
+    }
+
 }
 
