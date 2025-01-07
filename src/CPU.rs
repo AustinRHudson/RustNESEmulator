@@ -142,50 +142,6 @@ impl CPU{
         }
     }
 
-    pub fn inc_program_counter(&self, mode: &addressing_mode) -> u16{
-        match mode {
-            addressing_mode::Immediate => {
-                return 1;
-            }
-
-            addressing_mode::ZeroPage => {
-                return 1;
-            }
-
-            addressing_mode::ZeroPage_X => {
-                return 1;
-            }
-
-            addressing_mode::ZeroPage_Y => {
-                return 1;
-            }
-
-            addressing_mode::Absolute => {
-                return 2;
-            }
-            
-            addressing_mode::Absolute_X => {
-                return 2;
-            }
-
-            addressing_mode::Absolute_Y => {
-                return 2;
-            }
-
-            addressing_mode::Indirect_X => {
-                return 1;
-            }
-
-            addressing_mode::Indirect_Y => {
-                return 1;
-            }
-
-            _ => {
-                todo!();
-            }
-        }
-    }
-
     pub fn get_operand_address(&self, mode: &addressing_mode) -> u16{
         match mode {
             addressing_mode::Immediate => {
@@ -276,38 +232,8 @@ impl CPU{
                 }
 
                 //STA
-                0x85 => {
+                0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
                     self.STA(&addressing_mode::ZeroPage);
-                    self.program_counter += 1;
-                }
-
-                0x95 => {
-                    self.STA(&addressing_mode::ZeroPage_X);
-                    self.program_counter += 1;
-                }
-
-                0x8D => {
-                    self.STA(&addressing_mode::Absolute);
-                    self.program_counter += 2;
-                }
-
-                0x9D => {
-                    self.STA(&addressing_mode::Absolute_X);
-                    self.program_counter += 2;
-                }
-
-                0x99 => {
-                    self.STA(&addressing_mode::Absolute_Y);
-                    self.program_counter += 2;
-                }
-
-                0x81 => {
-                    self.STA(&addressing_mode::Indirect_X);
-                    self.program_counter += 1;
-                }
-
-                0x91 => {
-                    self.STA(&addressing_mode::Indirect_Y);
                     self.program_counter += 1;
                 }
     
@@ -349,8 +275,8 @@ mod tests{
     #[test]
     fn test_STA(){
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x05, 0x8D, 0x05, 0x06]);
-        assert_eq!(cpu.memory_read(0x0a), 0x05);
+        cpu.load_and_execute(vec![0xa9, 0x23, 0x8D, 0x05, 0x06]);
+        assert_eq!(cpu.memory_read(0x0605), 0x23);
         println!("{:?}", opcode_map[&0xa9].address_mode);
     }
 }
