@@ -123,6 +123,16 @@ lazy_static!{
         opCode::new(0xD9, 3, 4, addressing_mode::Absolute_Y),
         opCode::new(0xC1, 2, 6, addressing_mode::Indirect_X),
         opCode::new(0xD1, 2, 5, addressing_mode::Indirect_Y),
+        //STX
+        opCode::new(0x86, 2, 3, addressing_mode::ZeroPage),
+        opCode::new(0x96, 2, 4, addressing_mode::ZeroPage_Y),
+        opCode::new(0x8E, 3, 4, addressing_mode::Absolute),
+        //LDX
+        opCode::new(0xA2, 2, 2, addressing_mode::Immediate),
+        opCode::new(0xA6, 2, 3, addressing_mode::ZeroPage),
+        opCode::new(0xB6, 2, 4, addressing_mode::ZeroPage_X),
+        opCode::new(0xAE, 3, 4, addressing_mode::Absolute),
+        opCode::new(0xBE, 3, 4, addressing_mode::Absolute_Y),
     ];
     
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
@@ -330,9 +340,18 @@ impl CPU{
 
     fn BIT(&mut self, mode: &addressing_mode){
         let address = self.get_operand_address(mode);
-        let mut value = self.memory_read(address);
-        value = self.register_a & value;
-        self.update_negative_zero_flags(value);
+        let value = self.memory_read(address);
+        let result = self.register_a & value;
+        if(result == 0){
+            self.status = self.status | 0b0000_0001;
+        }else{
+            self.status = self.status & 0b1111_1110;
+        }
+        if(value  & 0b1000_0000 == 0b1000_0000 ){
+            self.status = self.status | 0b1000_0000;
+        }else{
+            self.status = self.status & 0b0111_1111
+        }
         if(value & 0b0100_0000 == 0b0100_0000){
             self.status = self.status | 0b0100_0000
         }else{
@@ -407,6 +426,19 @@ impl CPU{
         }else {
             self.status = self.status & 0b1111_1110;
         }
+    }
+
+    fn STX(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        self.memory_write(address, self.register_x);
+    }
+
+    fn LDX(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let value = self.memory_read(address);
+
+        self.register_x = value;
+        self.update_negative_zero_flags(self.register_x);
     }
 
     pub fn execute(&mut self){
@@ -535,6 +567,20 @@ impl CPU{
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
+                //STX
+                0x86 | 0x96 | 0x8E => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.STX(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
+                //LDX
+                0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.LDX(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
                 //ADC
                 0x69 => {
     
@@ -563,6 +609,21 @@ mod tests{
         cpu.load_and_execute(vec![0xa9, 0x05, 0x00]);
         assert_eq!(cpu.register_a, 5);
     }
+
+    #[test]
+    fn test_addressing_modes(){
+        //Zeropage
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0xa9, 0x05, 0x85, 0xAA]);
+        assert_eq!(cpu.memory_read(0xAA), 0x05);
+        //Zeropage_x
+        cpu.load_and_execute(vec![0xa9, 0x05, 0xA2, 0x05, 0x95, 0xA0]);
+        assert_eq!(cpu.memory_read(0xA5), 0x05);
+        //Absolute
+        cpu.load_and_execute(vec![0xa9, 0x05, 0x8D, 0x05, 0x06, 0x00]);
+        assert_eq!(cpu.memory_read(0x0605), 0x05);
+    }
+
     #[test]
     fn test_TAX(){
         let mut cpu = CPU::new();
