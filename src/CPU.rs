@@ -7,6 +7,7 @@ pub struct CPU {
     register_x: u8,
     register_y: u8,
     program_counter: u16,
+    stack_pointer: u8,
     status: u8,
     memory: [u8; 0xFFFF],
 }
@@ -266,6 +267,7 @@ impl CPU {
             register_x: 0,
             register_y: 0,
             program_counter: 0,
+            stack_pointer: 0,
             status: 0,
             memory: [0; 0xFFFF],
         }
@@ -275,6 +277,7 @@ impl CPU {
         self.register_a = 0;
         self.register_x = 0;
         self.register_y = 0;
+        self.stack_pointer = 0;
         self.status = 0;
         self.program_counter = self.memory_read_u16(0xFFFC);
     }
@@ -569,155 +572,334 @@ impl CPU {
             println!("op code {:#x}", opcode);
 
             match opcode {
-                //LDA
+                // LDA
                 0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
                     let opcode_object = opcode_map[&opcode];
                     self.LDA(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
-
-                //TAX
+            
+                // TAX
                 0xAA => {
                     self.register_x = self.register_a;
                     self.update_negative_zero_flags(self.register_x);
                 }
-
-                //STA
+            
+                // STA
                 0x85 | 0x95 | 0x8D | 0x9D | 0x99 | 0x81 | 0x91 => {
                     let opcode_object = opcode_map[&opcode];
                     self.STA(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
-
-                //AND
+            
+                // AND
                 0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => {
                     let opcode_object = opcode_map[&opcode];
                     self.AND(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
-
-                //ASL
+            
+                // ASL
                 0x0A | 0x06 | 0x16 | 0x0E | 0x1E => {
                     let opcode_object = opcode_map[&opcode];
                     self.ASL(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
-
-                //BCC
-                0x90 => {
-                    self.BCC();
-                }
-
-                //NOP
-                0xEA => {}
-
-                //INX
-                0xE8 => {
-                    self.register_x += 1;
-                    self.update_negative_zero_flags(self.register_x);
-                }
-
-                //BCS
-                0xB0 => {
-                    self.BCS();
-                }
-
-                //BEQ
-                0xF0 => {
-                    self.BEQ();
-                }
-
-                //BIT
+            
+                // // ADC
+                // 0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.ADC(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // // SBC
+                // 0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.SBC(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // BCC
+                0x90 => self.BCC(),
+            
+                // BCS
+                0xB0 => self.BCS(),
+            
+                // BEQ
+                0xF0 => self.BEQ(),
+            
+                // BIT
                 0x24 | 0x2C => {
                     let opcode_object = opcode_map[&opcode];
                     self.BIT(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
+            
+                // BMI
+                0x30 => self.BMI(),
+            
+                // BNE
+                0xD0 => self.BNE(),
+            
+                // BPL
+                0x10 => self.BPL(),
 
-                //BMI
-                0x30 => {
-                    self.BMI();
+                //BRK
+                0x00 => {
+                    return;
                 }
-
-                //BNE
-                0xD0 => {
-                    self.BNE();
-                }
-
-                //BPL
-                0x10 => {
-                    self.BPL();
-                }
-
-                //BVC
-                0x50 => {
-                    self.BVC();
-                }
-
-                //BVS
-                0x70 => {
-                    self.BVS();
-                }
-
-                //CLC
-                0x18 => {
-                    self.CLC();
-                }
-
-                //CLD
-                0xD8 => {
-                    self.CLD();
-                }
-
-                //CLI
-                0x58 => {
-                    self.CLI();
-                }
-
-                //CLV
-                0xB8 => {
-                    self.CLV();
-                }
-
-                //CMP
+            
+                // BVC
+                0x50 => self.BVC(),
+            
+                // BVS
+                0x70 => self.BVS(),
+            
+                // CLC
+                0x18 => self.CLC(),
+            
+                // CLD
+                0xD8 => self.CLD(),
+            
+                // CLI
+                0x58 => self.CLI(),
+            
+                // CLV
+                0xB8 => self.CLV(),
+            
+                // CMP
                 0xC9 | 0xC5 | 0xD5 | 0xCD | 0xDD | 0xD9 | 0xC1 | 0xD1 => {
                     let opcode_object = opcode_map[&opcode];
                     self.CMP(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
+            
+                // // CPX
+                // 0xE0 | 0xE4 | 0xEC => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.CPX(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // // CPY
+                // 0xC0 | 0xC4 | 0xCC => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.CPY(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // // DEC
+                // 0xC6 | 0xD6 | 0xCE | 0xDE => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.DEC(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // DEX
+                0xCA => {
+                    self.register_x = self.register_x.wrapping_sub(1);
+                    self.update_negative_zero_flags(self.register_x);
+                }
+            
+                // DEY
+                0x88 => {
+                    self.register_y = self.register_y.wrapping_sub(1);
+                    self.update_negative_zero_flags(self.register_y);
+                }
+            
+                // // EOR
+                // 0x49 | 0x45 | 0x55 | 0x4D | 0x5D | 0x59 | 0x41 | 0x51 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.EOR(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // // INC
+                // 0xE6 | 0xF6 | 0xEE | 0xFE => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.INC(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // INX
+                0xE8 => {
+                    self.register_x = self.register_x.wrapping_add(1);
+                    self.update_negative_zero_flags(self.register_x);
+                }
+            
+                // INY
+                0xC8 => {
+                    self.register_y = self.register_y.wrapping_add(1);
+                    self.update_negative_zero_flags(self.register_y);
+                }
+            
+                // // JMP
+                // 0x4C | 0x6C => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.JMP(&opcode_object.address_mode);
+                // }
+            
+                // // JSR
+                // 0x20 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.JSR(&opcode_object.address_mode);
+                // }
+            
+                // LDX
+                0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.LDX(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+            
+                // LDY
+                0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.LDY(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+            
+                // // LSR
+                // 0x4A | 0x46 | 0x56 | 0x4E | 0x5E => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.LSR(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
 
-                //STX
+                //NOP
+                0xEA => {
+
+                }
+            
+                // // ORA
+                // 0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.ORA(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+            
+                // // PHA
+                // 0x48 => {
+                //     self.stack_push(self.register_a);
+                // }
+
+                // // PHP
+                // 0x08 => {
+                //     self.stack_push(self.status | 0b00110000); // Push status with B and unused bits set
+                // }
+
+                // // PLA
+                // 0x68 => {
+                //     self.register_a = self.stack_pull();
+                //     self.update_negative_zero_flags(self.register_a);
+                // }
+
+                // // PLP
+                // 0x28 => {
+                //     self.status = self.stack_pull() & 0b11001111; // Mask off B and unused bits
+                // }
+
+                // // ROL
+                // 0x2A => {
+                //     self.ROL_accumulator();
+                // }
+                // 0x26 | 0x36 | 0x2E | 0x3E => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.ROL(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+
+                // // ROR
+                // 0x6A => {
+                //     self.ROR_accumulator();
+                // }
+                // 0x66 | 0x76 | 0x6E | 0x7E => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.ROR(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+
+                // // RTI
+                // 0x40 => {
+                //     self.status = self.stack_pull() & 0b11001111; // Mask off B and unused bits
+                //     let lo = self.stack_pull() as u16;
+                //     let hi = self.stack_pull() as u16;
+                //     self.program_counter = (hi << 8) | lo;
+                // }
+
+                // // RTS
+                // 0x60 => {
+                //     let lo = self.stack_pull() as u16;
+                //     let hi = self.stack_pull() as u16;
+                //     self.program_counter = ((hi << 8) | lo) + 1;
+                // }
+
+                // // SEC
+                // 0x38 => {
+                //     self.set_carry_flag();
+                // }
+
+                // // SED
+                // 0xF8 => {
+                //     self.set_decimal_mode();
+                // }
+
+                // // SEI
+                // 0x78 => {
+                //     self.set_interrupt_disable();
+                // }
+
+                // STX
                 0x86 | 0x96 | 0x8E => {
                     let opcode_object = opcode_map[&opcode];
                     self.STX(&opcode_object.address_mode);
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
-                //LDX
-                0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.LDX(&opcode_object.address_mode);
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // // STY
+                // 0x84 | 0x94 | 0x8C => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.STY(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
+
+                // TAX
+                0xAA => {
+                    self.register_x = self.register_a;
+                    self.update_negative_zero_flags(self.register_x);
                 }
 
-                //LDY
-                0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.LDY(&opcode_object.address_mode);
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // TAY
+                0xA8 => {
+                    self.register_y = self.register_a;
+                    self.update_negative_zero_flags(self.register_y);
                 }
 
-                //ADC
-                0x69 => {}
+                // // TSX
+                // 0xBA => {
+                //     self.register_x = self.stack_pointer;
+                //     self.update_negative_zero_flags(self.register_x);
+                // }
 
-                //BRK
-                0x00 => {
-                    return;
+                // TXA
+                0x8A => {
+                    self.register_a = self.register_x;
+                    self.update_negative_zero_flags(self.register_a);
                 }
 
-                _ => {
-                    todo!("ficinglol");
+                // TXS
+                0x9A => {
+                    self.stack_pointer = self.register_x;
                 }
+
+                // TYA
+                0x98 => {
+                    self.register_a = self.register_y;
+                    self.update_negative_zero_flags(self.register_a);
+                }
+
+                _ => todo!("Unimplemented opcode: {:02X}", opcode),
             }
         }
     }
