@@ -108,6 +108,21 @@ lazy_static!{
         opCode::new(0x70, 2, 2, addressing_mode::Relative),
         //CLC
         opCode::new(0x18, 1, 2, addressing_mode::Implied),
+        //CLD
+        opCode::new(0xD8, 1, 2, addressing_mode::Implied),
+        //CLI
+        opCode::new(0x58, 1, 2, addressing_mode::Implied),
+        //CLV
+        opCode::new(0xB8, 1, 2, addressing_mode::Implied),
+        //CMP
+        opCode::new(0xC9, 2, 2, addressing_mode::Immediate),
+        opCode::new(0xC5, 2, 3, addressing_mode::ZeroPage),
+        opCode::new(0xD5, 2, 4, addressing_mode::ZeroPage_X),
+        opCode::new(0xCD, 3, 4, addressing_mode::Absolute),
+        opCode::new(0xDD, 3, 4, addressing_mode::Absolute_X),
+        opCode::new(0xD9, 3, 4, addressing_mode::Absolute_Y),
+        opCode::new(0xC1, 2, 6, addressing_mode::Indirect_X),
+        opCode::new(0xD1, 2, 5, addressing_mode::Indirect_Y),
     ];
     
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
@@ -318,6 +333,11 @@ impl CPU{
         let mut value = self.memory_read(address);
         value = self.register_a & value;
         self.update_negative_zero_flags(value);
+        if(value & 0b0100_0000 == 0b0100_0000){
+            self.status = self.status | 0b0100_0000
+        }else{
+            self.status = self.status & 0b1011_1111
+        }
     }
 
     fn BMI(&mut self){
@@ -362,6 +382,31 @@ impl CPU{
 
     fn CLC(&mut self){
         self.status = self.status & 0b1111_1110;
+    }
+
+    fn CLD(&mut self){
+        self.status = self.status & 0b1111_0111;
+    }
+
+    fn CLI(&mut self){
+        self.status = self.status & 0b1111_1011;
+    }
+
+    fn CLV(&mut self){
+        self.status = self.status & 0b1011_1111;
+    }
+
+    fn CMP(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let value = self.memory_read(address);
+        
+        let result = self.register_a - value;
+        self.update_negative_zero_flags(result);
+        if(result >= 0){
+            self.status = self.status | 0b0000_0001;    
+        }else {
+            self.status = self.status & 0b1111_1110;
+        }
     }
 
     pub fn execute(&mut self){
@@ -466,6 +511,28 @@ impl CPU{
                 //CLC
                 0x18 => {
                     self.CLC();
+                }
+
+                //CLD
+                0xD8 => {
+                    self.CLD();
+                }
+
+                //CLI
+                0x58 => {
+                    self.CLI();
+                }
+
+                //CLV
+                0xB8 => {
+                    self.CLV();
+                }
+
+                //CMP
+                0xC9 | 0xC5 | 0xD5 | 0xCD | 0xDD | 0xD9 | 0xC1 | 0xD1 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.CMP(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 //ADC
@@ -590,13 +657,10 @@ mod tests{
         assert_eq!(0x01, cpu.register_x);
     }
 
-    #[test]
-    fn test_BVS(){
-        //write function test, currently copied from previous test. No way to set overflow flag.
-        let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x06, 0x50, 0x02, 0x00, 0xE8, 0xE8]);
-        assert_eq!(0x01, cpu.register_x);
-    }
+    // #[test]
+    // fn test_BVS(){
+    //     //write function test, currently copied from previous test. No way to set overflow flag.
+    // }
 
     #[test]
     fn test_CLC(){
@@ -604,5 +668,20 @@ mod tests{
         cpu.load_and_execute(vec![0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0x18, 0xB0, 0xF7]);
         assert_eq!(0, cpu.register_x);
     }
+
+    // #[test]
+    // fn test_CLD(){
+    //     //No way to test decimal mode yet so can't clear the flag.
+    // }
+
+    // #[test]
+    // fn test_CLI(){
+    //     //No way to test interrupt flag yet so can't clear flag.
+    // }
+
+    // #[test]
+    // fn test_CLV(){
+    //     //No way to test overflow flag yet so can't clear flag.
+    // }
 }
 
