@@ -535,7 +535,7 @@ impl CPU {
         let address = self.get_operand_address(mode);
         let value = self.memory_read(address);
 
-        let result = self.register_a - value;
+        let result = self.register_a.wrapping_sub(value);
         self.update_negative_zero_flags(result);
         if (result >= 0) {
             self.status = self.status | 0b0000_0001;
@@ -563,6 +563,19 @@ impl CPU {
 
         self.register_y = value;
         self.update_negative_zero_flags(self.register_y);
+    }
+
+    fn CPX(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let value = self.memory_read(address);
+
+        let result = self.register_x.wrapping_sub(value);
+        self.update_negative_zero_flags(result);
+        if (result >= 0) {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
     }
 
     pub fn execute(&mut self) {
@@ -675,12 +688,12 @@ impl CPU {
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
             
-                // // CPX
-                // 0xE0 | 0xE4 | 0xEC => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.CPX(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                // CPX
+                0xE0 | 0xE4 | 0xEC => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.CPX(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
             
                 // // CPY
                 // 0xC0 | 0xC4 | 0xCC => {
@@ -946,22 +959,21 @@ mod tests {
     #[test]
     fn test_STA() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x23, 0x8D, 0x05, 0x06]);
+        cpu.load_and_execute(vec![0xa9, 0x23, 0x8D, 0x05, 0x06, 0x00]);
         assert_eq!(cpu.memory_read(0x0605), 0x23);
     }
     #[test]
     fn test_AND() {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![
-            0xa9, 0x07, 0x8D, 0x05, 0x06, 0xa9, 0x04, 0x2D, 0x05, 0x06,
-        ]);
+            0xa9, 0x07, 0x8D, 0x05, 0x06, 0xa9, 0x04, 0x2D, 0x05, 0x06, 0x00]);
         assert_eq!(0b0000_0100, cpu.register_a);
     }
 
     #[test]
     fn test_ASL() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x04, 0x0A]);
+        cpu.load_and_execute(vec![0xa9, 0x04, 0x0A, 0x00]);
         assert_eq!(0b0000_1000, cpu.register_a);
         println!("{}", cpu.register_a);
     }
@@ -970,37 +982,33 @@ mod tests {
     fn test_pos_BCC() {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![
-            0xEA, 0x90, 0x0D, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8,
-            0xE8, 0xE8, 0xE8, 0xE8, 0xE8,
-        ]);
+            0xEA, 0x90, 0x0D, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0xE8, 0x00]);
         assert_eq!(cpu.register_x, 3);
     }
 
     #[test]
     fn test_neg_BCC() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0x90, 0x04, 0xE8, 0xE8, 0x00, 0xEA, 0x90, 0xFA]);
+        cpu.load_and_execute(vec![0x90, 0x04, 0xE8, 0xE8, 0x00, 0xEA, 0x90, 0xFA, 0x00]);
         assert_eq!(cpu.register_x, 2);
         cpu.load_and_execute(vec![
-            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0x90, 0xED,
-        ]);
+            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0x90, 0xED, 0x00]);
         assert_eq!(cpu.register_x, 0);
     }
     #[test]
     fn test_BCS() {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![
-            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0xB0, 0xF7,
-        ]);
+            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0xB0, 0xF7, 0x00]);
         assert_eq!(cpu.register_x, 2);
     }
 
     #[test]
     fn test_BEQ() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xA9, 0x00, 0xF0, 0x01, 0x00, 0xE8, 0xE8]);
+        cpu.load_and_execute(vec![0xA9, 0x00, 0xF0, 0x01, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(cpu.register_x, 2);
-        cpu.load_and_execute(vec![0xA9, 0x00, 0xF0, 0x03, 0x00, 0xE8, 0xE8]);
+        cpu.load_and_execute(vec![0xA9, 0x00, 0xF0, 0x03, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(cpu.register_x, 0);
     }
 
@@ -1008,36 +1016,35 @@ mod tests {
     fn test_BIT() {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![
-            0xa9, 0x04, 0x8D, 0x05, 0x06, 0xa9, 0x07, 0x2C, 0x05, 0x06,
-        ]);
+            0xa9, 0x04, 0x8D, 0x05, 0x06, 0xa9, 0x07, 0x2C, 0x05, 0x06, 0x00]);
         assert_eq!(0x07, cpu.register_a);
     }
 
     #[test]
     fn test_BMI() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0xCD, 0x30, 0x02, 0x00, 0xE8, 0xE8]);
+        cpu.load_and_execute(vec![0xa9, 0xCD, 0x30, 0x02, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(0x01, cpu.register_x);
     }
 
     #[test]
     fn test_BNE() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x01, 0xD0, 0x02, 0x00, 0xE8, 0xE8]);
+        cpu.load_and_execute(vec![0xa9, 0x01, 0xD0, 0x02, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(0x01, cpu.register_x);
     }
 
     #[test]
     fn test_BPL() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x06, 0x10, 0x02, 0x00, 0xE8, 0xE8]);
+        cpu.load_and_execute(vec![0xa9, 0x06, 0x10, 0x02, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(0x01, cpu.register_x);
     }
 
     #[test]
     fn test_BVC() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0xa9, 0x06, 0x50, 0x02, 0x00, 0xE8, 0xE8]);
+        cpu.load_and_execute(vec![0xa9, 0x06, 0x50, 0x02, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(0x01, cpu.register_x);
     }
 
@@ -1050,8 +1057,7 @@ mod tests {
     fn test_CLC() {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![
-            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0x18, 0xB0, 0xF7,
-        ]);
+            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0x18, 0xB0, 0xF7, 0x00]);
         assert_eq!(0, cpu.register_x);
     }
 
@@ -1069,4 +1075,20 @@ mod tests {
     //fn test_CLV(){
     //    //No way to test overflow flag yet so can't clear flag.
     //}
+
+    #[test]
+    fn test_CMP(){
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0xA9, 0x08, 0x85, 0x05, 0xC5, 0x05, 0x00]);
+        assert_eq!(cpu.status, 0b0000_0011);
+        cpu.load_and_execute(vec![0xA9, 0x08, 0x85, 0x05, 0xA9, 0x09, 0xC5, 0x05, 0x00]);
+        assert_eq!(cpu.status, 0b0000_0001);
+    }
+
+    #[test]
+    fn test_CPX(){  
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0xA2, 0x07, 0xE0, 0x08, 0x00]);
+        assert_eq!(cpu.status, 0b1000_0001);    
+    }
 }
