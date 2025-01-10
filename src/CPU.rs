@@ -1,6 +1,10 @@
 extern crate lazy_static;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use crate::opcodes::*;
+
+
+
 
 pub struct CPU {
     register_a: u8,
@@ -277,8 +281,8 @@ impl CPU {
         self.register_a = 0;
         self.register_x = 0;
         self.register_y = 0;
-        self.stack_pointer = 0;
-        self.status = 0;
+        self.stack_pointer = 0xFF;
+        self.status = 0b0010_0000;
         self.program_counter = self.memory_read_u16(0xFFFC);
     }
 
@@ -301,6 +305,16 @@ impl CPU {
         let lo = (value & 0x00FF) as u8;
         self.memory_write(address, lo);
         self.memory_write(address + 1, hi);
+    }
+
+    fn stack_push(&mut self, value: u8) {
+        self.memory_write(0x100 + self.stack_pointer as u16, value);
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
+    } 
+
+    fn stack_pop(&mut self) -> u8 {
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+        return self.memory_read(0x100 + self.stack_pointer as u16);
     }
 
     pub fn load_and_execute(&mut self, program: Vec<u8>) {
@@ -606,6 +620,53 @@ impl CPU {
         self.program_counter = address;
     }
 
+    fn JSR(&mut self, mode: &addressing_mode){
+        
+        let address = self.get_operand_address(mode);
+        // decided to not do -1 thing here, so make sure not to do + 1 thing
+        // for rts
+        let pc_addr = self.program_counter + 2;
+        let hi = (pc_addr >> 8) as u8;
+        let lo = (pc_addr & 0x00FF) as u8;
+        // push big endian, so we can read little endian
+        self.stack_push(hi);
+        self.stack_push(lo);
+        self.program_counter = address;
+    }
+
+    fn RTS(&mut self){
+        let lo = self.stack_pop() as u16;
+        let hi = self.stack_pop() as u16;
+        let address = (hi << 8) | lo;
+        self.program_counter = address;
+    }
+
+    fn LSR(&mut self, mode: &addressing_mode) {
+        let mut value: u8;
+        let mut address: u16 = 0;
+        if (*mode == addressing_mode::Accumulator) {
+            value = self.register_a;
+        } else {
+            address = self.get_operand_address(mode);
+            value = self.memory_read(address);
+        }
+        self.status = (value & 0b0000_0001) | (0b1111_1110 & self.status);
+        value = value >> 1;
+        if (*mode == addressing_mode::Accumulator) {
+            self.register_a = value;
+        } else {
+            self.memory_write(address, value);
+        }
+        self.update_negative_zero_flags(value);
+    }
+
+    fn ORA(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let value = self.memory_read(address);
+        self.register_a = value | self.register_a;
+        self.update_negative_zero_flags(self.register_a);
+    }
+
     pub fn execute(&mut self) {
         loop {
             let opcode = self.memory[self.program_counter as usize];
@@ -781,11 +842,11 @@ impl CPU {
                     self.JMP(&opcode_object.address_mode);
                 }
             
-                // // JSR
-                // 0x20 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.JSR(&opcode_object.address_mode);
-                // }
+                // JSR
+                0x20 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.JSR(&opcode_object.address_mode);
+                }
             
                 // LDX
                 0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => {
@@ -801,34 +862,35 @@ impl CPU {
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
             
-                // // LSR
-                // 0x4A | 0x46 | 0x56 | 0x4E | 0x5E => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.LSR(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                // LSR
+                0x4A | 0x46 | 0x56 | 0x4E | 0x5E => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.LSR(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
 
                 //NOP
                 0xEA => {
 
                 }
             
-                // // ORA
-                // 0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.ORA(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                // ORA
+                0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.ORA(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
             
-                // // PHA
-                // 0x48 => {
-                //     self.stack_push(self.register_a);
-                // }
+                // PHA
+                0x48 => {
+                    self.stack_push(self.register_a);
+                    self.program_counter += 1;
+                }
 
-                // // PHP
-                // 0x08 => {
-                //     self.stack_push(self.status | 0b00110000); // Push status with B and unused bits set
-                // }
+                // PHP
+                0x08 => {
+                    self.stack_push(self.status | 0b00110000); // Push status with B and unused bits set
+                }
 
                 // // PLA
                 // 0x68 => {
@@ -869,12 +931,10 @@ impl CPU {
                 //     self.program_counter = (hi << 8) | lo;
                 // }
 
-                // // RTS
-                // 0x60 => {
-                //     let lo = self.stack_pull() as u16;
-                //     let hi = self.stack_pull() as u16;
-                //     self.program_counter = ((hi << 8) | lo) + 1;
-                // }
+                // RTS
+                0x60 => {
+                    self.RTS();
+                }
 
                 // // SEC
                 // 0x38 => {
@@ -917,11 +977,11 @@ impl CPU {
                     self.update_negative_zero_flags(self.register_y);
                 }
 
-                // // TSX
-                // 0xBA => {
-                //     self.register_x = self.stack_pointer;
-                //     self.update_negative_zero_flags(self.register_x);
-                // }
+                // TSX
+                0xBA => {
+                    self.register_x = self.stack_pointer;
+                    self.update_negative_zero_flags(self.register_x);
+                }
 
                 // TXA
                 0x8A => {
@@ -1150,7 +1210,31 @@ mod tests {
     #[test]
     fn test_JMP(){  
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0x02, 0x85, 0x01, 0xA9, 0x80, 0x85, 0x02, 0x6C, 0x01, 0x00, 0x00]);
+        cpu.load_and_execute(vec![BCC_REL, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0x02, 0x85, 0x01, 0xA9, 0x80, 0x85, 0x02, 0x6C, 0x01, 0x00, 0x00]);
         assert_eq!(cpu.register_x, 2);
+    }
+
+    #[test]
+    fn test_JSR_RTS(){  
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![0x20, 0x06, 0x80, 0xE8, 0xE8, 0x00, 0xA9, 0x1A, 0x60, 0x00]);
+        assert_eq!(cpu.register_x, 2);
+    }
+
+    #[test]
+    fn test_LSR(){  
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![LDA_IMM, 0x01, LSR_ACC, 0x00]);
+        assert_eq!(0b0000_0000, cpu.register_a);
+        assert_eq!(0b0000_0011, cpu.status);
+        println!("{}", cpu.register_a);
+    }
+
+    #[test]
+    fn test_ORA(){  
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![LDA_IMM, 0b0000_1111, STA_0PGE, 0x01, LDA_IMM, 0b1111_0000, ORA_0PGE, 0x01, 0x00]);
+        assert_eq!(0b1111_1111, cpu.register_a);
+        assert_eq!(0b1000_0000, cpu.status);
     }
 }
