@@ -1,6 +1,6 @@
 #![allow(warnings)]
 extern crate lazy_static;
-pub mod CPU;
+pub mod cpu;
 mod opcodes;
 mod test;
 
@@ -12,6 +12,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
 use std::time::Duration;
+use crate::cpu::CPU;
 
 #[macro_use]
 extern crate bitflags;
@@ -122,7 +123,7 @@ fn main() {
     let mut rng = rand::thread_rng();
 
     // run the game cycle
-    cpu.run_with_callback(move |cpu| {
+    cpu.execute(move |cpu| {
         handle_user_input(cpu, &mut event_pump);
 
         cpu.memory_write(0xfe, rng.gen_range(1, 16));

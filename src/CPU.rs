@@ -328,12 +328,16 @@ impl CPU {
     pub fn load_and_execute(&mut self, program: Vec<u8>) {
         self.load(program);
         self.reset();
-        self.execute()
+        self.execute(|_| {});
     }
 
+    // pub fn load(&mut self, program: Vec<u8>) {
+    //     self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
+    //     self.memory_write_u16(0xFFFC, 0x8000);
+    // }
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.memory_write_u16(0xFFFC, 0x8000);
+        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+        self.memory_write_u16(0xFFFC, 0x0600);
     }
 
     pub fn update_negative_zero_flags(&mut self, value: u8) {
@@ -742,8 +746,10 @@ impl CPU {
         self.update_negative_zero_flags(self.register_a);
     }
 
-    pub fn execute(&mut self) {
+    pub fn execute<F>(&mut self, mut callback: F)
+    where F: FnMut(&mut CPU) {
         loop {
+            callback(self);
             let opcode = self.memory[self.program_counter as usize];
             self.program_counter += 1;
             //println!("op code {:#x}", opcode);

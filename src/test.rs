@@ -3,7 +3,7 @@
 
 
 mod tests {
-    use crate::CPU::CPU;
+    use crate::cpu::CPU;
     use crate::opcodes::*;
 	#[test]
     fn test_LDA() {
