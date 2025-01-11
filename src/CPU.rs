@@ -54,7 +54,15 @@ impl opCode {
 
 lazy_static! {
     pub static ref opcode_list: Vec<opCode> = vec![
-        
+        //ADC
+        opCode::new(0x69, 2, 2, addressing_mode::Immediate),
+        opCode::new(0x65, 2, 3, addressing_mode::ZeroPage),
+        opCode::new(0x75, 2, 4, addressing_mode::ZeroPage_X),
+        opCode::new(0x6D, 3, 4, addressing_mode::Absolute),
+        opCode::new(0x7D, 3, 4, addressing_mode::Absolute_X),
+        opCode::new(0x79, 3, 4, addressing_mode::Absolute_Y),
+        opCode::new(0x61, 2, 6, addressing_mode::Indirect_X),
+        opCode::new(0x71, 2, 5, addressing_mode::Indirect_Y),
         //AND
         opCode::new(0x29, 2, 2, addressing_mode::Immediate),
         opCode::new(0x25, 2, 3, addressing_mode::ZeroPage),
@@ -710,14 +718,35 @@ impl CPU {
     }
 
     pub fn ADC(&mut self, mode: &addressing_mode){
-        
+        let address = self.get_operand_address(mode);
+        let value = self.memory_read(address);
+        let sum: u16 = (value as u16) + (self.register_a as u16) + ((self.status & 0b0000_0001) as u16);
+        self.status = (self.status & 0b1111_1110) | (0b0000_0001 & (sum > 0xff) as u8);
+        let overflow = !(self.register_a ^ value) & (self.register_a ^ (sum as u8)) & 0b1000_0000;
+        self.status = (self.status & 0b1011_1111) | (0b0100_0000 & overflow >> 1);
+        self.register_a = sum as u8;
+        self.update_negative_zero_flags(self.register_a);
+    }
+
+    pub fn SBC(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let mut value = self.memory_read(address);
+        println!("{:08b}", value);
+        value = !value;
+        println!("{:08b}", value);
+        let sum: u16 = (value as u16) + (self.register_a as u16) + ((self.status & 0b0000_0001) as u16);
+        self.status = (self.status & 0b1111_1110) | (0b0000_0001 & (sum > 0xff) as u8);
+        let overflow = !(self.register_a ^ value) & (self.register_a ^ (sum as u8)) & 0b1000_0000;
+        self.status = (self.status & 0b1011_1111) | (0b0100_0000 & overflow >> 1);
+        self.register_a = sum as u8;
+        self.update_negative_zero_flags(self.register_a);
     }
 
     pub fn execute(&mut self) {
         loop {
             let opcode = self.memory[self.program_counter as usize];
             self.program_counter += 1;
-            println!("op code {:#x}", opcode);
+            //println!("op code {:#x}", opcode);
 
             match opcode {
                 // LDA
@@ -761,12 +790,12 @@ impl CPU {
                     self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
             
-                // // SBC
-                // 0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.SBC(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                // SBC
+                0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.SBC(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
             
                 // BCC
                 0x90 => self.BCC(),

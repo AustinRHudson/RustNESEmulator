@@ -281,4 +281,34 @@ mod tests {
         cpu.load_and_execute(vec![LDA_IMM, 0x04, ROR_ACC, 0x00]);
         assert_eq!(cpu.register_a, 0b0000_0010);
     }
+
+    #[test]
+    fn test_ADC(){  
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![LDA_IMM, 0x05, ADC_IMM, 0x04, 0x00]);
+        assert_eq!(cpu.register_a, 9);
+        assert_eq!(cpu.status, 0b0011_0000);
+        cpu.load_and_execute(vec![SEC_IMP, LDA_IMM, 0x05, ADC_IMM, 0x04, 0x00]);
+        assert_eq!(cpu.register_a, 10);
+        assert_eq!(cpu.status, 0b0011_0000);
+        cpu.load_and_execute(vec![LDA_IMM, 0b1000_0000, ADC_IMM, 0b1000_0000, 0x00]);
+        println!("{:08b}", cpu.status);
+        assert_eq!(cpu.status, 0b0111_0011);
+        cpu.load_and_execute(vec![LDA_IMM, 0b1111_1110, ADC_IMM, 0b1111_1100, 0x00]);
+        println!("{:08b}", cpu.status);
+    }
+
+    #[test]
+    fn test_SBC(){  
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![LDA_IMM, 0x08, SBC_IMM, 0x04, 0x00]);
+        assert_eq!(cpu.register_a, 3);
+        cpu.load_and_execute(vec![LDA_IMM, 0x05, SEC_IMP, SBC_IMM, 0x03, STA_0PGE, 0x00, LDA_IMM, 0x05, CLC_IMP,
+					SBC_IMM, 0x03, STA_0PGE, 0x01, LDA_IMM, 0x00, SEC_IMP, SBC_IMM, 0x01, STA_0PGE,
+					0x02, LDA_IMM, 0x80, SEC_IMP, SBC_IMM, 0xFF, STA_0PGE, 0x03, 0x00]);
+        assert_eq!(cpu.memory_read(0x03), 0x81);
+        assert_eq!(cpu.memory_read(0x02), 0xFF);
+        assert_eq!(cpu.memory_read(0x01), 0x01);
+        assert_eq!(cpu.memory_read(0x00), 0x02);
+    }
 }
