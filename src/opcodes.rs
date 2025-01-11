@@ -133,6 +133,9 @@ pub const LSR_0PGE_X: u8 = 0x56;
 pub const LSR_ABS: u8 = 0x4E;
 pub const LSR_ABS_X: u8 = 0x5E;
 
+// NOP
+pub const NOP: u8 = 0xEA;
+
 // ORA
 pub const ORA_IMM: u8 = 0x09;
 pub const ORA_0PGE: u8 = 0x05;
