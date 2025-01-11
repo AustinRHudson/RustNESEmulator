@@ -119,24 +119,24 @@ fn main() {
         JSR_ABS, 0x0d, 0x06, // fn_3 JMP(126)
         JSR_ABS, 0x2a, 0x06, // fn_4
         RTS_IMP, 
-        LDA_IMM, 0x02,
+        LDA_IMM, 0x02, // move direction
         STA_0PGE, 0x02, 
-        LDA_IMM, 0x04, 
+        LDA_IMM, 0x04, // snake length
         STA_0PGE, 0x03, 
         LDA_IMM, 0x11, 
-        STA_0PGE, 0x10, 
+        STA_0PGE, 0x10, // something to do with snake pos 
         LDA_IMM, 0x10, 
-        STA_0PGE, 0x12, 
+        STA_0PGE, 0x12, // something to do with snake pos
         LDA_IMM, 0x0f, 
-        STA_0PGE, 0x14, 
+        STA_0PGE, 0x14, // something to do with snake pos
         LDA_IMM, 0x04, 
         STA_0PGE, 0x11, 
-        STA_0PGE, 0x13, 
+        STX_0PGE, 0x13, 
         STA_0PGE, 0x15, 
         RTS_IMP, 
-        LDA_0PGE, 0xfe, 
-        STA_0PGE, 0x00, 
-        LDA_0PGE, 0xfe, 
+        LDA_0PGE, 0xfe, // 0xfe just contains a rand number, not necessarily apple color every time
+        STA_0PGE, 0x00, // new rng 
+        LDA_0PGE, 0xfe, // new rng
         AND_IMM, 0x03, 
         CLC_IMP, 
         ADC_IMM, 0x02, 
@@ -150,45 +150,60 @@ fn main() {
         JSR_ABS, 0x2d, 0x07, 
         JMP_ABS, 0x38, 0x06, 
         LDA_0PGE, 0xff,
-        CMP_IMM, 0x77, 
+        CMP_IMM, 0x77, // w
         BEQ_REL, 0x0d, 
-        CMP_IMM, 0x64, 
+        CMP_IMM, 0x64, // a
         BEQ_REL, 0x14, 
-        CMP_IMM, 0x73, 
+        CMP_IMM, 0x73, // s 
         BEQ_REL, 0x1b, 
-        CMP_IMM, 0x61, 
+        CMP_IMM, 0x61, // d
         BEQ_REL, 0x22, 
         RTS_IMP, 
-        LDA_IMM, 0x04, 
-        BIT_0PGE, 0x02, 
-        BNE_REL, 0x26, 
-        LDA_IMM, 0x01, 
-        STA_0PGE, 0x02, 
-        RTS_IMP, 
+        //   0b01 // 1
+        // & 0b10 // 2
+        // -------
+        //   0000 // 0, zero flag = 1
+        // BNE, is zero flag false? then branch
+
+        //   0b10 // 2
+        // & 0b10 // 2
+        // -------
+        //   0010 // 2, zero flag = 0
+        // BNE, is zero flag false? then branch
+        // sure. they are equal. so instruction say
+        // do not branch. why? because they are equal
+        // LIES...BRANCH. zero flag is false, so we must branch
+
+        LDA_IMM, 0x04, // jump here for w
+            BIT_0PGE, 0x02, 
+            BNE_REL, 0x26, 
+            LDA_IMM, 0x01, // real w
+            STA_0PGE, 0x02, 
+            RTS_IMP, 
         LDA_IMM, 0x08, 
-        BIT_0PGE, 0x02, 
-        BNE_REL, 0x1b, 
-        LDA_IMM, 0x02, 
-        STA_0PGE, 0x02, 
-        RTS_IMP, 
+            BIT_0PGE, 0x02, 
+            BNE_REL, 0x1b, 
+            LDA_IMM, 0x02, 
+            STA_0PGE, 0x02, 
+            RTS_IMP, 
         LDA_IMM, 0x01,
-        BIT_0PGE, 0x02, 
-        BNE_REL, BPL_REL, 
-        LDA_IMM, 0x04, 
-        STA_0PGE, 0x02, 
-        RTS_IMP, 
+            BIT_0PGE, 0x02, 
+            BNE_REL, 0x10, 
+            LDA_IMM, 0x04, 
+            STA_0PGE, 0x02, 
+            RTS_IMP, 
         LDA_IMM, 0x02, 
-        BIT_0PGE, 0x02, 
-        BNE_REL, 0x05,
-        LDA_IMM, 0x08, 
-        STA_0PGE, 0x02, 
-        RTS_IMP, 
+            BIT_0PGE, 0x02, 
+            BNE_REL, 0x05, // <-- fake!!! really a BEQ
+            LDA_IMM, 0x08, 
+            STA_0PGE, 0x02, 
+            RTS_IMP, 
         RTS_IMP, 
         JSR_ABS, 0x94, 0x06, 
         JSR_ABS, 0xa8, 0x06, 
         RTS_IMP, 
         LDA_0PGE, 0x00,
-        CMP_0PGE, BPL_REL, 
+        CMP_0PGE, 0x10, 
         BNE_REL, 0x0d, 
         LDA_0PGE, 0x01, 
         CMP_0PGE, 0x11, 
@@ -198,8 +213,8 @@ fn main() {
         JSR_ABS, 0x2a, 0x06, 
         RTS_IMP, 
         LDX_IMM, 0x02, 
-        LDA_0PGE_X, BPL_REL, 
-        CMP_0PGE, BPL_REL, 
+        LDA_0PGE_X, 0x10, 
+        CMP_0PGE, 0x10, 
         BNE_REL, 0x06, 
         LDA_0PGE_X, 0x11, 
         CMP_0PGE, 0x11,
