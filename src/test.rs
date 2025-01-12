@@ -81,8 +81,7 @@ mod tests {
     #[test]
     fn test_BCS() {
         let mut cpu = CPU::new();
-        cpu.load_and_execute(vec![
-            0x90, 0x03, 0xE8, 0xE8, 0x00, 0xA9, 0xCF, 0x0A, 0xEA, 0xB0, 0xF7, 0x00]);
+        cpu.load_and_execute(vec![BCC_REL, 0x03, INX_IMP, INX_IMP, 0x00, LDA_IMM, 0xCF, ASL_ACC, NOP, BCS_REL, 0xF7, 0x00]);
         assert_eq!(cpu.register_x, 2);
     }
 
