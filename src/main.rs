@@ -60,29 +60,17 @@ fn handle_user_input(cpu: &mut CPU, event_pump: &mut EventPump) {
                 std::process::exit(0)
             },
             Event::KeyDown { keycode: Some(Keycode::W), .. } => {
-                println!("in here bitch");
                 cpu.memory_write(0xff, 0x77);
-                println!("memory: ");
-                println!("{:x}", cpu.memory_read(0xff));
 
             },
             Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                println!("in here bitch 2");
                 cpu.memory_write(0xff, 0x73);
-                println!("memory: ");
-                println!("{:x}", cpu.memory_read(0xff));
             },
             Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                println!("in here bitch 3");
                 cpu.memory_write(0xff, 0x61);
-                println!("memory: ");
-                println!("{:x}", cpu.memory_read(0xff));
             },
             Event::KeyDown { keycode: Some(Keycode::D), .. } => {
-                println!("in here bitch 4");
                 cpu.memory_write(0xff, 0x64);
-                println!("memory: ");
-                println!("{:x}", cpu.memory_read(0xff));
             }
             _ => {/* do nothing */}
         }
@@ -362,7 +350,7 @@ fn main() {
         }
         // mem_dump_canvas.present();
 
-        ::std::thread::sleep(std::time::Duration::new(0, 7_000));
+        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
         iters+=1;
     });
 

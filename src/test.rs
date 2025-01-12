@@ -58,7 +58,6 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![0xa9, 0x04, 0x0A, 0x00]);
         assert_eq!(0b0000_1000, cpu.register_a);
-        println!("{}", cpu.register_a);
     }
 
     #[test]
@@ -225,7 +224,6 @@ mod tests {
         cpu.load_and_execute(vec![LDA_IMM, 0x01, LSR_ACC, 0x00]);
         assert_eq!(0b0000_0000, cpu.register_a);
         assert_eq!(0b0011_0011, cpu.status);
-        println!("{}", cpu.register_a);
     }
 
     #[test]
@@ -295,10 +293,8 @@ mod tests {
         assert_eq!(cpu.register_a, 10);
         assert_eq!(cpu.status, 0b0011_0000);
         cpu.load_and_execute(vec![LDA_IMM, 0b1000_0000, ADC_IMM, 0b1000_0000, 0x00]);
-        println!("{:08b}", cpu.status);
         assert_eq!(cpu.status, 0b0111_0011);
         cpu.load_and_execute(vec![LDA_IMM, 0b1111_1110, ADC_IMM, 0b1111_1100, 0x00]);
-        println!("{:08b}", cpu.status);
     }
 
     #[test]

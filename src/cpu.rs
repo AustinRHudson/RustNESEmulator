@@ -497,9 +497,9 @@ impl CPU {
         let value = self.memory_read(address);
         let result = self.register_a & value;
         if (result == 0) {
-            self.status = self.status | 0b0000_0001;
+            self.status = self.status | 0b0000_0010;
         } else {
-            self.status = self.status & 0b1111_1110;
+            self.status = self.status & 0b1111_1101;
         }
         if (value & 0b1000_0000 == 0b1000_0000) {
             self.status = self.status | 0b1000_0000;
@@ -742,9 +742,7 @@ impl CPU {
     pub fn SBC(&mut self, mode: &addressing_mode){
         let address = self.get_operand_address(mode);
         let mut value = self.memory_read(address);
-        println!("{:08b}", value);
         value = !value;
-        println!("{:08b}", value);
         let sum: u16 = (value as u16) + (self.register_a as u16) + ((self.status & 0b0000_0001) as u16);
         self.status = (self.status & 0b1111_1110) | (0b0000_0001 & (sum > 0xff) as u8);
         let overflow = !(self.register_a ^ value) & (self.register_a ^ (sum as u8)) & 0b1000_0000;
