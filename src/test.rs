@@ -95,6 +95,14 @@ mod tests {
     }
 
     #[test]
+    fn test_BEQ_new() {
+        let mut cpu = CPU::new();
+        cpu.load_and_execute(vec![LDA_IMM, 0x20, STA_0PGE, 0x10, LDA_IMM, 0x1f, BIT_0PGE, 0x10, BEQ_REL, 0x02, 0x00, INX_IMP, INX_IMP, INX_IMP]);
+        println!("{:08b}", cpu.status);
+        assert_eq!(cpu.register_x, 2);
+    }
+
+    #[test]
     fn test_BIT() {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![
