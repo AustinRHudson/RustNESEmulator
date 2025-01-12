@@ -1,10 +1,12 @@
 #![allow(warnings)]
 extern crate lazy_static;
 pub mod cpu;
+mod bus;
 mod opcodes;
 mod test;
 
 use crate::opcodes::*;
+use crate::cpu::Mem;
 use rand::Rng;
 use sdl2::event::Event;
 use sdl2::rect::Rect;
@@ -323,7 +325,7 @@ fn main() {
 
     //load the game
     let mut cpu = CPU::new();
-    cpu.load(game_code);
+    cpu.load(game_code, 0x0600);
     cpu.reset();
 
     let mut screen_state = [0 as u8; 32 * 3 * 32];
@@ -345,9 +347,9 @@ fn main() {
 
         // mem_dump_canvas.clear();
         // render_memory_dump(&mut mem_dump_canvas, &cpu);
-        if(iters % 1000 == 0) {
-            write_memory_dump_to_file(&cpu, "memory_dump.txt").unwrap();
-        }
+        // if(iters % 1000 == 0) {
+        //     write_memory_dump_to_file(&cpu, "memory_dump.txt").unwrap();
+        // }
         // mem_dump_canvas.present();
 
         ::std::thread::sleep(std::time::Duration::new(0, 70_000));
@@ -357,22 +359,22 @@ fn main() {
     
 }
 
-fn render_memory_dump(canvas: &mut Canvas<Window>, cpu: &CPU) {
-    // Example rendering logic for memory dump
-    let memory = cpu.get_memory();
-    for (i, &byte) in memory.iter().enumerate() {
-        let x = (i % 32) as i32 * 20;
-        let y = (i / 32) as i32 * 20;
-        // canvas.set_draw_color(Color::RGB(byte, byte, byte));
-        // canvas.fill_rect(Rect::new(x, y, 20, 20)).unwrap();
-    }
-}
+// fn render_memory_dump(canvas: &mut Canvas<Window>, cpu: &CPU) {
+//     // Example rendering logic for memory dump
+//     let memory = cpu.get_memory();
+//     for (i, &byte) in memory.iter().enumerate() {
+//         let x = (i % 32) as i32 * 20;
+//         let y = (i / 32) as i32 * 20;
+//         // canvas.set_draw_color(Color::RGB(byte, byte, byte));
+//         // canvas.fill_rect(Rect::new(x, y, 20, 20)).unwrap();
+//     }
+// }
 
-fn write_memory_dump_to_file(cpu: &CPU, filename: &str) -> std::io::Result<()> {
-    let memory = cpu.get_memory();
-    let mut file = File::create(filename)?;
-    for (i, &byte) in memory.iter().take(256).enumerate() {
-        writeln!(file, "0x{:04X}: 0x{:02X}", i, byte)?;
-    }
-    Ok(())
-}
+// fn write_memory_dump_to_file(cpu: &CPU, filename: &str) -> std::io::Result<()> {
+//     let memory = cpu.get_memory();
+//     let mut file = File::create(filename)?;
+//     for (i, &byte) in memory.iter().take(256).enumerate() {
+//         writeln!(file, "0x{:04X}: 0x{:02X}", i, byte)?;
+//     }
+//     Ok(())
+// }

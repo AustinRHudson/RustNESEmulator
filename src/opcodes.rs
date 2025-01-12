@@ -54,6 +54,8 @@ pub const BPL_REL: u8 = 0x10;
 pub const BVC_REL: u8 = 0x50;
 pub const BVS_REL: u8 = 0x70;
 
+pub const BRK: u8 = 0x00;
+
 pub const CLC_IMP: u8 = 0x18;
 pub const CLD_IMP: u8 = 0xD8;
 pub const CLI_IMP: u8 = 0x58;

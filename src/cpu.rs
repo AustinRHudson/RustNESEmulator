@@ -2,7 +2,18 @@ extern crate lazy_static;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use crate::opcodes::*;
-
+use crate::bus::Bus;
+    ///
+    ///  7 6 5 4 3 2 1 0
+    ///  N V _ B D I Z C
+    ///  | |   | | | | +--- Carry Flag
+    ///  | |   | | | +----- Zero Flag
+    ///  | |   | | +------- Interrupt Disable
+    ///  | |   | +--------- Decimal Mode (not used on NES)
+    ///  | |   +----------- Break Command
+    ///  | +--------------- Overflow Flag
+    ///  +----------------- Negative Flag
+    ///
 
 
 
@@ -13,7 +24,7 @@ pub struct CPU {
     pub program_counter: u16,
     pub stack_pointer: u8,
     pub status: u8,
-    pub memory: [u8; 0xFFFF],
+    pub bus: Bus,
 }
 
 #[derive(PartialEq, Eq)]
@@ -32,6 +43,25 @@ pub enum addressing_mode {
     Accumulator,
     Relative,
     Implied,
+}
+
+pub trait Mem {
+    fn memory_read(&self, address: u16) -> u8;
+
+    fn memory_write(&mut self, address: u16, value: u8);
+
+    fn memory_read_u16(&self, address: u16) -> u16 {
+        let lo = self.memory_read(address) as u16;
+        let hi = self.memory_read(address + 1) as u16;
+        return (hi << 8) | lo;
+    }
+
+    fn memory_write_u16(&mut self, address: u16, value: u16) {
+        let hi = (value >> 8) as u8;
+        let lo = (value & 0x00FF) as u8;
+        self.memory_write(address, lo);
+        self.memory_write(address + 1, hi);
+    }
 }
 
 pub struct opCode {
@@ -272,6 +302,26 @@ lazy_static! {
     };
 }
 
+impl Mem for CPU {
+    fn memory_read(&self, address: u16) -> u8 {
+        // return self.memory[address as usize];
+        return self.bus.memory_read(address)
+    }
+
+    fn memory_write(&mut self, address: u16, value: u8) {
+        // self.memory[address as usize] = value;
+        return self.bus.memory_write(address, value)
+    }
+
+    fn memory_read_u16(&self, address: u16) -> u16 {
+        self.bus.memory_read_u16(address)
+    }
+  
+    fn memory_write_u16(&mut self, address: u16, value: u16) {
+        self.bus.memory_write_u16(address, value)
+    }
+}
+
 impl CPU {
     pub fn new() -> Self {
         CPU {
@@ -281,7 +331,7 @@ impl CPU {
             program_counter: 0,
             stack_pointer: 0,
             status: 0,
-            memory: [0; 0xFFFF],
+            bus: Bus::new()
         }
     }
 
@@ -291,32 +341,8 @@ impl CPU {
         self.register_y = 0;
         self.stack_pointer = 0xFF;
         self.status = 0b0010_0000;
-        self.program_counter = self.memory_read_u16(0xFFFC);
-    }
-
-    pub fn memory_read(&self, address: u16) -> u8 {
-        return self.memory[address as usize];
-    }
-
-    pub fn memory_read_u16(&self, address: u16) -> u16 {
-        let lo = self.memory_read(address) as u16;
-        let hi = self.memory_read(address + 1) as u16;
-        return (hi << 8) | lo;
-    }
-
-    pub fn memory_write(&mut self, address: u16, value: u8) {
-        self.memory[address as usize] = value;
-    }
-
-    pub fn memory_write_u16(&mut self, address: u16, value: u16) {
-        let hi = (value >> 8) as u8;
-        let lo = (value & 0x00FF) as u8;
-        self.memory_write(address, lo);
-        self.memory_write(address + 1, hi);
-    }
-
-    pub fn get_memory(&self) -> &[u8; 0xFFFF] {
-        return &self.memory;
+        let pc = self.memory_read_u16(0xFFFC);
+        self.program_counter = if pc == 0 { 0x600 } else {pc};
     }
 
     pub fn stack_push(&mut self, value: u8) {
@@ -332,8 +358,8 @@ impl CPU {
         return val;
     }
 
-    pub fn load_and_execute(&mut self, program: Vec<u8>) {
-        self.load(program);
+    pub fn load_and_execute(&mut self, program: Vec<u8>, starting_addr: u16) {
+        self.load(program, starting_addr);
         self.reset();
         self.execute(|_| {});
     }
@@ -342,8 +368,12 @@ impl CPU {
     //     self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
     //     self.memory_write_u16(0xFFFC, 0x8000);
     // }
-    pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+    pub fn load(&mut self, program: Vec<u8>, starting_addr: u16) {
+        for i in 0..(program.len() as u16) {
+            self.memory_write(starting_addr + i, program[i as usize]);
+        }
+        // old load
+        // self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]); 
         self.memory_write_u16(0xFFFC, 0x0600);
     }
 
@@ -755,7 +785,8 @@ impl CPU {
     where F: FnMut(&mut CPU) {
         loop {
             callback(self);
-            let opcode = self.memory[self.program_counter as usize];
+            // let opcode = self.memory[self.program_counter as usize];
+            let opcode = self.memory_read(self.program_counter);
             self.program_counter += 1;
             //println!("op code {:#x}", opcode);
 
