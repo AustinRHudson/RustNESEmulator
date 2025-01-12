@@ -115,6 +115,10 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.load_and_execute(vec![0xa9, 0x01, 0xD0, 0x02, 0x00, 0xE8, 0xE8, 0x00]);
         assert_eq!(0x01, cpu.register_x);
+        assert_eq!(0b0011_0000, cpu.status);
+        cpu.load_and_execute(vec![0x29, 0x00, 0xD0, 0x02, 0x00, 0xE8, 0xE8, 0x00]);
+        assert_eq!(0x00, cpu.register_x);
+        assert_eq!(0b0011_0010, cpu.status);
     }
 
     #[test]
