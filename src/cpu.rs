@@ -497,9 +497,9 @@ impl CPU {
         let value = self.memory_read(address);
         let result = self.register_a & value;
         if (result == 0) {
-            self.status = self.status | 0b0000_0001;
+            self.status = self.status | 0b0000_0010;
         } else {
-            self.status = self.status & 0b1111_1110;
+            self.status = self.status & 0b1111_1101;
         }
         if (value & 0b1000_0000 == 0b1000_0000) {
             self.status = self.status | 0b1000_0000;
