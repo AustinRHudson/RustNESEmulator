@@ -2,7 +2,7 @@ extern crate lazy_static;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use crate::opcodes::*;
-use crate::bus::Bus;
+use crate::bus::*;
     ///
     ///  7 6 5 4 3 2 1 0
     ///  N V _ B D I Z C
@@ -323,7 +323,7 @@ impl Mem for CPU {
 }
 
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(bus: Bus) -> Self {
         CPU {
             register_a: 0,
             register_x: 0,
@@ -331,7 +331,7 @@ impl CPU {
             program_counter: 0,
             stack_pointer: 0,
             status: 0,
-            bus: Bus::new()
+            bus: bus,
         }
     }
 

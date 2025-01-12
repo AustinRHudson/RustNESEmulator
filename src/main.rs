@@ -4,7 +4,7 @@ pub mod cpu;
 mod bus;
 mod opcodes;
 mod test;
-
+mod cartridge;
 use crate::opcodes::*;
 use crate::cpu::Mem;
 use rand::Rng;
