@@ -126,7 +126,7 @@ fn main() {
         LDA_IMM, 0x04, // snake length
         STA_0PGE, 0x03, 
         LDA_IMM, 0x11, 
-        STA_0PGE, 0x10, // initial snake head location, least significant bytes
+        STA_0PGE, 0x10, // initial snake head location, least significant bytes (0x10 is lo for head)
         LDA_IMM, 0x10, 
         STA_0PGE, 0x12, // initial snake body location, least significant bytes
         LDA_IMM, 0x0f, 
@@ -256,9 +256,9 @@ fn main() {
         //shifts all segmets of snake forward 2 places in memory (2 bytes for each segmemt)
         LDA_0PGE_X, 0x10, //load the first segment of the snake 
         STA_0PGE_X, 0x12, //store a register into register 2 addresses down (move the segment)
-        DEX_IMP, 
+        DEX_IMP,  
         BPL_REL, 0xf9, //if positive branch back to updateLoop to move more segments
-        LDA_0PGE, 0x02, //load direction of snake into a
+        LDA_0PGE, 0x02, //load direction of snake into A
         LSR_ACC, 
         BCS_REL, 0x09, //check if right shift cut off the 1 bit, if so branch to up
         LSR_ACC, 
