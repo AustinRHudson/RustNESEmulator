@@ -343,8 +343,8 @@ impl CPU {
     //     self.memory_write_u16(0xFFFC, 0x8000);
     // }
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
-        self.memory_write_u16(0xFFFC, 0x0600);
+        self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
+        self.memory_write_u16(0xFFFC, 0x8000);
     }
 
     pub fn update_negative_zero_flags(&mut self, value: u8) {
