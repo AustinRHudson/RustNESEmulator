@@ -304,6 +304,38 @@ lazy_static! {
         opCode::new(0xB2, 1, 2, addressing_mode::Implied),
         opCode::new(0xD2, 1, 2, addressing_mode::Implied),
         opCode::new(0xF2, 1, 2, addressing_mode::Implied),
+        //DCP
+        opCode::new(0xc7, 2, 5, addressing_mode::ZeroPage),
+        opCode::new(0xd7, 2, 6, addressing_mode::ZeroPage_X),
+        opCode::new(0xCF, 3, 6, addressing_mode::Absolute),
+        opCode::new(0xdF, 3, 7, addressing_mode::Absolute_X),
+        opCode::new(0xdb, 3, 7, addressing_mode::Absolute_Y),
+        opCode::new(0xd3, 2, 8, addressing_mode::Indirect_Y),
+        opCode::new(0xc3, 2, 8, addressing_mode::Indirect_X),
+        //RLA
+        opCode::new(0x27, 2, 5, addressing_mode::ZeroPage),
+        opCode::new(0x37, 2, 6, addressing_mode::ZeroPage_X),
+        opCode::new(0x2F, 3, 6, addressing_mode::Absolute),
+        opCode::new(0x3F, 3, 7, addressing_mode::Absolute_X),
+        opCode::new(0x3b, 3, 7, addressing_mode::Absolute_Y),
+        opCode::new(0x33, 2, 8, addressing_mode::Indirect_Y),
+        opCode::new(0x23, 2, 8, addressing_mode::Indirect_X),
+        //SLO
+        opCode::new(0x07, 2, 5, addressing_mode::ZeroPage),
+        opCode::new(0x17, 2, 6, addressing_mode::ZeroPage_X),
+        opCode::new(0x0F, 3, 6, addressing_mode::Absolute),
+        opCode::new(0x1f, 3, 7, addressing_mode::Absolute_X),
+        opCode::new(0x1b, 3, 7, addressing_mode::Absolute_Y),
+        opCode::new(0x03, 2, 8, addressing_mode::Indirect_X),
+        opCode::new(0x13, 2, 8, addressing_mode::Indirect_Y),
+        //SRE
+        opCode::new(0x47, 2, 5, addressing_mode::ZeroPage),
+        opCode::new(0x57, 2, 6, addressing_mode::ZeroPage_X),
+        opCode::new(0x4F, 3, 6, addressing_mode::Absolute),
+        opCode::new(0x5f, 3, 7, addressing_mode::Absolute_X),
+        opCode::new(0x5b, 3, 7, addressing_mode::Absolute_Y),
+        opCode::new(0x43, 2, 8, addressing_mode::Indirect_X),
+        opCode::new(0x53, 2, 8, addressing_mode::Indirect_Y),
     ];
 
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
@@ -794,6 +826,32 @@ impl CPU {
         self.update_negative_zero_flags(self.register_a);
     }
 
+    pub fn DCP(&mut self, mode: &addressing_mode){
+        let address = self.get_operand_address(mode);
+        let mut value = self.memory_read(address);
+    
+        value = value.wrapping_sub(1);
+        self.memory_write(address, value);
+        let result = self.register_a.wrapping_sub(value);
+        self.update_negative_zero_flags(result);
+        if (result >= 0) {
+            self.status = self.status | 0b0000_0001;
+        } else {
+            self.status = self.status & 0b1111_1110;
+        }
+    }
+
+    pub fn RLA(&mut self, mode: &addressing_mode){
+        self.ROL(mode);
+        self.AND(mode);
+    }
+
+    pub fn SLO(&mut self, mode: &addressing_mode){
+        self.ASL(mode);
+        self.ORA(mode);
+    }
+
+
     pub fn execute<F>(&mut self, mut callback: F)
     where F: FnMut(&mut CPU) {
         loop {
@@ -1124,12 +1182,39 @@ impl CPU {
                     self.update_negative_zero_flags(self.register_a);
                 }
 
+                //Unofficial Opcodes
                 
-                //NOPs
+                //KIL (JAM) [HLT]
                 0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
                 | 0xf2 => { /* do nothing */ }
 
                 0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => { /* do nothing */ }
+
+                //DCP
+                0xc7 | 0xd7 | 0xCF | 0xdF | 0xdb | 0xd3 | 0xc3 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.DCP(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
+                //RLA
+                0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.RLA(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
+                //SLO
+                0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.SLO(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
+                //SRE
+                0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => {
+                    
+                }
 
                 _ => todo!("Unimplemented opcode: {:02X}", opcode),
             }
