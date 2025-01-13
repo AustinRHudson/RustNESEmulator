@@ -359,7 +359,7 @@ impl CPU {
     }
 
     pub fn load_and_execute(&mut self, program: Vec<u8>, starting_addr: u16) {
-        self.load(program, starting_addr);
+        //self.load(program, starting_addr);
         self.reset();
         self.execute(|_| {});
     }
@@ -374,7 +374,7 @@ impl CPU {
         }
         // old load
         // self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]); 
-        self.memory_write_u16(0xFFFC, 0x0600);
+        //self.memory_write_u16(0xFFFC, 0x0600);
     }
 
     pub fn update_negative_zero_flags(&mut self, value: u8) {
