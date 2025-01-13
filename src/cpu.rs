@@ -1111,6 +1111,13 @@ impl CPU {
                     self.update_negative_zero_flags(self.register_a);
                 }
 
+                
+                //NOPs
+                0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
+                | 0xf2 => { /* do nothing */ }
+
+                0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => { /* do nothing */ }
+
                 _ => todo!("Unimplemented opcode: {:02X}", opcode),
             }
         }
