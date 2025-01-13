@@ -291,6 +291,19 @@ lazy_static! {
         opCode::new(0x9A, 1, 2, addressing_mode::Implied),
         //TYA
         opCode::new(0x98, 1, 2, addressing_mode::Implied),
+        //KIL (JAM) [HLT]
+        opCode::new(0x02, 1, 2, addressing_mode::Implied),
+        opCode::new(0x12, 1, 2, addressing_mode::Implied),
+        opCode::new(0x22, 1, 2, addressing_mode::Implied),
+        opCode::new(0x32, 1, 2, addressing_mode::Implied),
+        opCode::new(0x42, 1, 2, addressing_mode::Implied),
+        opCode::new(0x52, 1, 2, addressing_mode::Implied),
+        opCode::new(0x62, 1, 2, addressing_mode::Implied),
+        opCode::new(0x72, 1, 2, addressing_mode::Implied),
+        opCode::new(0x92, 1, 2, addressing_mode::Implied),
+        opCode::new(0xB2, 1, 2, addressing_mode::Implied),
+        opCode::new(0xD2, 1, 2, addressing_mode::Implied),
+        opCode::new(0xF2, 1, 2, addressing_mode::Implied),
     ];
 
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
