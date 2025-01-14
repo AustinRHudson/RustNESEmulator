@@ -27,7 +27,7 @@ pub struct CPU {
     pub bus: Bus,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum addressing_mode {
     Immediate,
     ZeroPage,
@@ -65,10 +65,10 @@ pub trait Mem {
 }
 
 pub struct opCode {
-    code: u8,
-    bytes: u8,
-    cycles: u8,
-    address_mode: addressing_mode,
+    pub code: u8,
+    pub bytes: u8,
+    pub cycles: u8,
+    pub address_mode: addressing_mode,
 }
 
 impl opCode {
@@ -1239,7 +1239,177 @@ impl CPU {
                 }
 
                 //AXS
-                
+                0xCB => {
+                    let opcode_object = opcode_map[&opcode];
+                    let addr = self.get_operand_address(&opcode_object.address_mode);
+                    let data = self.memory_read(addr);
+                    let x_and_a = self.register_x & self.register_a;
+                    let result = x_and_a.wrapping_sub(data);
+
+                    if data <= x_and_a {
+                        self.status = self.status | 0b0000_0001;
+                    }
+                    self.update_negative_zero_flags(result);
+
+                    self.register_x = result;
+                }
+
+                /* ARR */
+                // 0x6B => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.AND(&opcode_object.address_mode);
+                //     let addr = self.get_operand_address(&opcode_object.address_mode);
+                //     let data = self.memory_read(addr);
+                //     self.AND(&opcode_object.address_mode);
+                //     self.ROR(&addressing_mode::Accumulator);
+                //     //todo: registers
+                //     let result = self.register_a;
+                //     let bit_5 = (result >> 5) & 1;
+                //     let bit_6 = (result >> 6) & 1;
+
+                //     if bit_6 == 1 {
+                //         self.status.insert(CpuFlags::CARRY)
+                //     } else {
+                //         self.status.remove(CpuFlags::CARRY)
+                //     }
+
+                //     if bit_5 ^ bit_6 == 1 {
+                //         self.status.insert(CpuFlags::OVERFLOW);
+                //     } else {
+                //         self.status.remove(CpuFlags::OVERFLOW);
+                //     }
+
+                //     self.update_negative_zero_flags(result);
+                // }
+
+                // /* unofficial SBC */
+                // 0xeb => {
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     let data = self.memory_read(addr);
+                //     self.sub_from_register_a(data);
+                // }
+
+                // /* ANC */
+                // 0x0b | 0x2b => {
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     let data = self.memory_read(addr);
+                //     self.and_with_register_a(data);
+                //     if self.status.contains(CpuFlags::NEGATIV) {
+                //         self.status.insert(CpuFlags::CARRY);
+                //     } else {
+                //         self.status.remove(CpuFlags::CARRY);
+                //     }
+                // }
+
+                // /* ALR */
+                // 0x4b => {
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     let data = self.memory_read(addr);
+                //     self.and_with_register_a(data);
+                //     self.lsr_accumulator();
+                // }
+
+                // //todo: test for everything below
+
+                // /* RRA */
+                // 0x67 | 0x77 | 0x6f | 0x7f | 0x7b | 0x63 | 0x73 => {
+                //     let data = self.ror(&opcode.mode);
+                //     self.add_to_register_a(data);
+                // }
+
+                // /* ISB */
+                // 0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => {
+                //     let data = self.inc(&opcode.mode);
+                //     self.sub_from_register_a(data);
+                // }
+
+                // /* LAX */
+                // 0xa7 | 0xb7 | 0xaf | 0xbf | 0xa3 | 0xb3 => {
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     let data = self.memory_read(addr);
+                //     self.set_register_a(data);
+                //     self.register_x = self.register_a;
+                // }
+
+                // /* SAX */
+                // 0x87 | 0x97 | 0x8f | 0x83 => {
+                //     let data = self.register_a & self.register_x;
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     self.memory_write(addr, data);
+                // }
+
+                // /* LXA */
+                // 0xab => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.LDA(&opcode_object.address_mode);
+                //     self.register_x = self.register_a;
+                //     self.update_negative_zero_flags(self.register_x);
+                // }
+
+                // /* XAA */
+                // 0x8b => {
+                //     self.register_a = self.register_x;
+                //     self.update_zero_and_negative_flags(self.register_a);
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     let data = self.memory_read(addr);
+                //     self.and_with_register_a(data);
+                // }
+
+                // /* LAS */
+                // 0xbb => {
+                //     let addr = self.get_operand_address(&opcode.mode);
+                //     let mut data = self.memory_read(addr);
+                //     data = data & self.stack_pointer;
+                //     self.register_a = data;
+                //     self.register_x = data;
+                //     self.stack_pointer = data;
+                //     self.update_zero_and_negative_flags(data);
+                // }
+
+                // /* TAS */
+                // 0x9b => {
+                //     let data = self.register_a & self.register_x;
+                //     self.stack_pointer = data;
+                //     let mem_address =
+                //         self.memory_read_u16(self.program_counter) + self.register_y as u16;
+
+                //     let data = ((mem_address >> 8) as u8 + 1) & self.stack_pointer;
+                //     self.memory_write(mem_address, data)
+                // }
+
+                // /* AHX  Indirect Y */
+                // 0x93 => {
+                //     let pos: u8 = self.memory_read(self.program_counter);
+                //     let mem_address = self.memory_read_u16(pos as u16) + self.register_y as u16;
+                //     let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
+                //     self.memory_write(mem_address, data)
+                // }
+
+                // /* AHX Absolute Y*/
+                // 0x9f => {
+                //     let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
+
+                //     let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
+                //     self.memory_write(mem_address, data)
+                // }
+
+                // /* SHX */
+                // 0x9e => {
+                //     let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
+
+                //     // todo if cross page boundry {
+                //     //     mem_address &= (self.x as u16) << 8;
+                //     // }
+                //     let data = self.register_x & ((mem_address >> 8) as u8 + 1);
+                //     self.memory_write(mem_address, data)
+                // }
+
+                // /* SHY */
+                // 0x9c => {
+                //     let mem_address = self.memory_read_u16(self.program_counter) + self.register_x as u16;
+                //     let data = self.register_y & ((mem_address >> 8) as u8 + 1);
+                //     self.memory_write(mem_address, data)
+                // }
 
                 _ => todo!("Unimplemented opcode: {:02X}", opcode),
             }

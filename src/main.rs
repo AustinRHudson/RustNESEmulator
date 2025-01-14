@@ -5,6 +5,7 @@ mod bus;
 mod opcodes;
 mod test;
 mod cartridge;
+mod trace;
 use crate::opcodes::*;
 use rand::Rng;
 use sdl2::event::Event;
@@ -21,6 +22,7 @@ use std::io::Write;
 use crate::cpu::*;
 use crate::bus::*;
 use crate::cartridge::*;
+use crate::trace::*;
 
 #[macro_use]
 extern crate bitflags;
@@ -121,7 +123,8 @@ fn main() {
 
     // run the game cycle
     cpu.execute(move |cpu| {
-        handle_user_input(cpu, &mut event_pump);
+        
+        //handle_user_input(cpu, &mut event_pump);
 
         cpu.memory_write(0xfe, rng.gen_range(1, 16));
 
