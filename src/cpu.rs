@@ -336,6 +336,14 @@ lazy_static! {
         opCode::new(0x5b, 3, 7, addressing_mode::Absolute_Y),
         opCode::new(0x43, 2, 8, addressing_mode::Indirect_X),
         opCode::new(0x53, 2, 8, addressing_mode::Indirect_Y),
+        //SKB
+        opCode::new(0x80, 2, 2, addressing_mode::Immediate),
+        opCode::new(0x82, 2, 2, addressing_mode::Immediate),
+        opCode::new(0x89, 2, 2, addressing_mode::Immediate),
+        opCode::new(0xc2, 2, 2, addressing_mode::Immediate),
+        opCode::new(0xe2, 2, 2, addressing_mode::Immediate),
+        //AXS
+        opCode::new(0xCB, 2, 2, addressing_mode::Immediate),
     ];
 
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
@@ -851,6 +859,12 @@ impl CPU {
         self.ORA(mode);
     }
 
+    pub fn SRE(&mut self, mode: &addressing_mode){
+        self.LSR(mode);
+        self.EOR(mode);
+    }
+
+
 
     pub fn execute<F>(&mut self, mut callback: F)
     where F: FnMut(&mut CPU) {
@@ -1213,8 +1227,19 @@ impl CPU {
 
                 //SRE
                 0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => {
-                    
+                    let opcode_object = opcode_map[&opcode];
+                    self.SRE(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
+
+                //SKB
+                0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
+
+                //AXS
+                
 
                 _ => todo!("Unimplemented opcode: {:02X}", opcode),
             }
