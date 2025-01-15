@@ -5,7 +5,7 @@ pub fn trace(cpu: &CPU) -> String {
     let ref opscodes: HashMap<u8, &'static opCode> = *opcode_map;
 
     let code = cpu.memory_read(cpu.program_counter);
-    let ops = opscodes.get(&code).unwrap();
+    let ops = opscodes[&code];
 
     let begin = cpu.program_counter;
     let mut hex_dump = vec![];
@@ -14,6 +14,7 @@ pub fn trace(cpu: &CPU) -> String {
     let (mem_addr, stored_value) = match ops.address_mode {
         addressing_mode::Immediate | addressing_mode::NoneAddressing => (0, 0),
         _ => {
+            println!("{:?}", &ops.address_mode);
             let addr = cpu.get_operand_address(&ops.address_mode);
             (addr, cpu.memory_read(addr))
         }
@@ -143,6 +144,7 @@ mod test {
         bus.memory_write(104, 0x00);
 
         let mut cpu = CPU::new(bus);
+        cpu.reset();
         cpu.program_counter = 0x64;
         cpu.register_a = 1;
         cpu.register_x = 2;
@@ -180,6 +182,7 @@ mod test {
         bus.memory_write(0x400, 0xAA);
 
         let mut cpu = CPU::new(bus);
+        cpu.reset();
         cpu.program_counter = 0x64;
         cpu.register_y = 0;
         let mut result: Vec<String> = vec![];

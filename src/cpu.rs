@@ -377,6 +377,8 @@ impl Mem for CPU {
     }
 }
 
+const stack_reset: u8 = 0xFD;
+
 impl CPU {
     pub fn new(bus: Bus) -> Self {
         CPU {
@@ -394,8 +396,8 @@ impl CPU {
         self.register_a = 0;
         self.register_x = 0;
         self.register_y = 0;
-        self.stack_pointer = 0xFF;
-        self.status = 0b0010_0000;
+        self.stack_pointer = stack_reset;
+        self.status = 0b0010_0100;
         let pc = self.memory_read_u16(0xFFFC);
         self.program_counter = if pc == 0 { 0x600 } else {pc};
     }
@@ -499,6 +501,10 @@ impl CPU {
                 let hi = self.memory_read((address as u16).wrapping_add(1) as u16);
                 let combinedAddress = ((hi as u16) << 8) | (lo as u16);
                 return combinedAddress.wrapping_add(self.register_y as u16);
+            }
+
+            addressing_mode::Implied => {
+                return 0;
             }
 
             _ => {
@@ -767,7 +773,9 @@ impl CPU {
     pub fn ORA(&mut self, mode: &addressing_mode){
         let address = self.get_operand_address(mode);
         let value = self.memory_read(address);
+        println!("{:0x}", value);
         self.register_a = value | self.register_a;
+        println!("{:0x}", self.register_a);
         self.update_negative_zero_flags(self.register_a);
     }
 
@@ -872,10 +880,11 @@ impl CPU {
     where F: FnMut(&mut CPU) {
         loop {
             callback(self);
+            //println!("{}", self.status);
             // let opcode = self.memory[self.program_counter as usize];
             let opcode = self.memory_read(self.program_counter);
             self.program_counter += 1;
-            //println!("op code {:#x}", opcode);
+            println!("op code {:#x}", opcode);
 
             match opcode {
                 // LDA
@@ -1413,7 +1422,7 @@ impl CPU {
                 //     self.memory_write(mem_address, data)
                 // }
 
-                _ => todo!("Unimplemented opcode: {:02X}", opcode),
+                _ => {}//todo!("Unimplemented opcode: {:02X}", opcode),
             }
         }
     }

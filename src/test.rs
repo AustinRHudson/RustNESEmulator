@@ -3,15 +3,21 @@
 
 
 mod tests {
+    use test::test_rom;
+
     use crate::cpu::*;
     use crate::opcodes::*;
     use crate::bus::*;
     use crate::cartridge::*;
 	#[test]
     fn test_LDA() {
-        let bus = Bus::new(Rom::new(&vec![LDA_IMM, 0x05, 0x00]).unwrap());
+        let mut bus = Bus::new(test_rom(vec![LDA_IMM, 0x05, 0x00]));
         let mut cpu = CPU::new(bus);
-        //cpu.load_and_execute(, 0x0600);
+        cpu.memory_write_u16(0xFFFC, 0x8000);
+        cpu.reset();
+        cpu.execute(move |cpu| {
+            
+        });
         assert_eq!(cpu.register_a, 5);
     }
 
