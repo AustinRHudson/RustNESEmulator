@@ -884,7 +884,7 @@ impl CPU {
             // let opcode = self.memory[self.program_counter as usize];
             let opcode = self.memory_read(self.program_counter);
             self.program_counter += 1;
-            println!("op code {:#x}", opcode);
+            //println!("op code {:#x}", opcode);
 
             match opcode {
                 // LDA

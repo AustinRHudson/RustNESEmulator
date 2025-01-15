@@ -93,7 +93,7 @@ impl Mem for Bus {
            }
 
             0x8000..=0xFFFF => {
-						panic!("Attempt to write to Cartridge ROM space")
+						//panic!("Attempt to write to Cartridge ROM space")
 			}
 
            _ => {

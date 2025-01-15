@@ -1,12 +1,11 @@
 use crate::cpu::*;
 use std::collections::HashMap;
 
-pub fn trace(cpu: &CPU) -> String {
+pub fn trace(cpu: &mut CPU) -> String {
     let ref opscodes: HashMap<u8, &'static opCode> = *opcode_map;
 
     let code = cpu.memory_read(cpu.program_counter);
     let ops = opscodes[&code];
-
     let begin = cpu.program_counter;
     let mut hex_dump = vec![];
     hex_dump.push(code);
@@ -14,8 +13,9 @@ pub fn trace(cpu: &CPU) -> String {
     let (mem_addr, stored_value) = match ops.address_mode {
         addressing_mode::Immediate | addressing_mode::NoneAddressing => (0, 0),
         _ => {
-            println!("{:?}", &ops.address_mode);
+            cpu.program_counter += 1;
             let addr = cpu.get_operand_address(&ops.address_mode);
+            cpu.program_counter -= 1;
             (addr, cpu.memory_read(addr))
         }
     };
@@ -48,13 +48,15 @@ pub fn trace(cpu: &CPU) -> String {
                     mem_addr,
                     stored_value
                 ),
-                addressing_mode::Indirect_Y => format!(
+                addressing_mode::Indirect_Y => {
+
+                    format!(
                     "(${:02x}),Y = {:04x} @ {:04x} = {:02x}",
                     address,
                     (mem_addr.wrapping_sub(cpu.register_y as u16)),
                     mem_addr,
                     stored_value
-                ),
+                )},
                 addressing_mode::NoneAddressing => {
                     // assuming local jumps: BNE, BVS, etc....
                     let address: usize =
