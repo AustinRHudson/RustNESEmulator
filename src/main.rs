@@ -15,11 +15,12 @@ use crate::test::*;
 
 
 fn main() {
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/1.Branch_Basics.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/TestRoms/nestest.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
     let mut bus = Bus::new(rom);
     let mut cpu = CPU::new(bus);
     cpu.reset();
+    cpu.program_counter = 0xC000;
     cpu.execute(move |cpu| {
         println!("{}", trace(cpu));
     });

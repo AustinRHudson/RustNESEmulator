@@ -399,6 +399,7 @@ impl CPU {
         self.stack_pointer = stack_reset;
         self.status = 0b0010_0100;
         let pc = self.memory_read_u16(0xFFFC);
+        println!("{:04x}", pc);
         self.program_counter = if pc == 0 { 0x600 } else {pc};
     }
 
@@ -503,12 +504,8 @@ impl CPU {
                 return combinedAddress.wrapping_add(self.register_y as u16);
             }
 
-            addressing_mode::Implied => {
-                return 0;
-            }
-
             _ => {
-                todo!();
+                todo!("addressing_mode: {:?}", mode);
             }
         }
     }
@@ -773,9 +770,7 @@ impl CPU {
     pub fn ORA(&mut self, mode: &addressing_mode){
         let address = self.get_operand_address(mode);
         let value = self.memory_read(address);
-        println!("{:0x}", value);
         self.register_a = value | self.register_a;
-        println!("{:0x}", self.register_a);
         self.update_negative_zero_flags(self.register_a);
     }
 
@@ -884,6 +879,7 @@ impl CPU {
             // let opcode = self.memory[self.program_counter as usize];
             let opcode = self.memory_read(self.program_counter);
             self.program_counter += 1;
+            //println!("{:04x}", ((self.memory_read((self.stack_pointer + 1) as u16 + 0x100) as u16) << 8) | (self.memory_read((self.stack_pointer + 2) as u16 + 0x100))as u16);
             //println!("op code {:#x}", opcode);
 
             match opcode {
