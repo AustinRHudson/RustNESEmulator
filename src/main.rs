@@ -19,6 +19,7 @@ fn main() {
     let rom = Rom::new(&bytes).unwrap();
     let mut bus = Bus::new(rom);
     let mut cpu = CPU::new(bus);
+    cpu.reset();
     cpu.execute(move |cpu| {
         println!("{}", trace(cpu));
     });
