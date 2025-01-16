@@ -399,19 +399,21 @@ impl CPU {
         self.stack_pointer = stack_reset;
         self.status = 0b0010_0100;
         let pc = self.memory_read_u16(0xFFFC);
+        println!("{:02x}", self.memory_read(0xFFFC));
+        println!("{:02x}", self.memory_read(0xFFFD));
         println!("{:04x}", pc);
         self.program_counter = if pc == 0 { 0x600 } else {pc};
     }
 
     pub fn stack_push(&mut self, value: u8) {
-        self.memory_write(0x100 + self.stack_pointer as u16, value);
+        self.memory_write(0x100 + (self.stack_pointer as u16), value);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     } 
 
     pub fn stack_pop(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
 
-        let val = self.memory_read(0x100 + self.stack_pointer as u16);
+        let val = self.memory_read(0x100 + (self.stack_pointer as u16));
         // self.memory_write
         return val;
     }
@@ -663,7 +665,7 @@ impl CPU {
 
         let result = register.wrapping_sub(value);
         self.update_negative_zero_flags(result);
-        if (result >= 0) {
+        if (register >= value) {
             self.status = self.status | 0b0000_0001;
         } else {
             self.status = self.status & 0b1111_1110;
@@ -1109,7 +1111,7 @@ impl CPU {
 
                 // PLP
                 0x28 => {
-                    self.status = self.stack_pop()
+                    self.status = (self.stack_pop() & 0b1110_1111) | 0b0010_0000;
                 }
 
                 // ROL
