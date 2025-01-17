@@ -106,7 +106,7 @@ fn main() {
 
     // let mut mem_dump_canvas = mem_dump_window.into_canvas().present_vsync().build().unwrap();
     
-    let bytes: Vec<u8> = std::fs::read("nestest.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/snake.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
 
     let bus = Bus::new(rom);
