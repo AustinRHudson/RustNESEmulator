@@ -399,23 +399,38 @@ impl CPU {
         self.stack_pointer = stack_reset;
         self.status = 0b0010_0100;
         let pc = self.memory_read_u16(0xFFFC);
-        println!("{:02x}", self.memory_read(0xFFFC));
-        println!("{:02x}", self.memory_read(0xFFFD));
-        println!("{:04x}", pc);
-        self.program_counter = if pc == 0 { 0x600 } else {pc};
+        // println!("{:02x}", self.memory_read(0xFFFC));
+        // println!("{:02x}", self.memory_read(0xFFFD));
+        // println!("{:04x}", pc);
+        self.program_counter = if pc == 0 { 0x8000 } else {pc};
     }
 
     pub fn stack_push(&mut self, value: u8) {
         self.memory_write(0x100 + (self.stack_pointer as u16), value);
+        //println!("{:x}", self.memory_read(0x100 + (self.stack_pointer as u16)));
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     } 
 
     pub fn stack_pop(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
-
+        //println!("{:x}", self.memory_read(0x100 + (self.stack_pointer as u16)));
         let val = self.memory_read(0x100 + (self.stack_pointer as u16));
         // self.memory_write
         return val;
+    }
+
+    fn stack_push_u16(&mut self, data: u16) {
+        let hi = (data >> 8) as u8;
+        let lo = (data & 0xff) as u8;
+        self.stack_push(hi);
+        self.stack_push(lo);
+    }
+
+    fn stack_pop_u16(&mut self) -> u16 {
+        let lo = self.stack_pop() as u16;
+        let hi = self.stack_pop() as u16;
+
+        hi << 8 | lo
     }
 
     pub fn load_and_execute(&mut self, program: Vec<u8>, starting_addr: u16) {
@@ -486,8 +501,22 @@ impl CPU {
             }
 
             addressing_mode::Indirect => {
-                let address = self.memory_read_u16(self.program_counter);
-                return self.memory_read_u16(address);
+                let mem_address = self.memory_read_u16(self.program_counter);
+                    // let indirect_ref = self.mem_read_u16(mem_address);
+                    //6502 bug mode with with page boundary:
+                    //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
+                    // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
+                    // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
+
+                    let indirect_ref = if mem_address & 0x00FF == 0x00FF {
+                        let lo = self.memory_read(mem_address);
+                        let hi = self.memory_read(mem_address & 0xFF00);
+                        (hi as u16) << 8 | (lo as u16)
+                    } else {
+                        self.memory_read_u16(mem_address)
+                    };
+
+                    return indirect_ref;
             }
 
             addressing_mode::Indirect_X => {
@@ -499,11 +528,12 @@ impl CPU {
             }
 
             addressing_mode::Indirect_Y => {
-                let address = self.memory_read(self.program_counter);
-                let lo = self.memory_read(address as u16);
-                let hi = self.memory_read((address as u16).wrapping_add(1) as u16);
-                let combinedAddress = ((hi as u16) << 8) | (lo as u16);
-                return combinedAddress.wrapping_add(self.register_y as u16);
+                let base = self.memory_read(self.program_counter);
+                let lo = self.memory_read(base as u16);
+                let hi = self.memory_read((base as u8).wrapping_add(1) as u16);
+                let deref_base = (hi as u16) << 8 | (lo as u16);
+                let deref = deref_base.wrapping_add(self.register_y as u16);
+                deref
             }
 
             _ => {
@@ -731,23 +761,13 @@ impl CPU {
 
     pub fn JSR(&mut self, mode: &addressing_mode){
         
-        let address = self.get_operand_address(mode);
-        // decided to not do -1 thing here, so make sure not to do + 1 thing
-        // for rts
-        let pc_addr = self.program_counter + 2;
-        let hi = (pc_addr >> 8) as u8;
-        let lo = (pc_addr & 0x00FF) as u8;
-        // push big endian, so we can read little endian
-        self.stack_push(hi);
-        self.stack_push(lo);
-        self.program_counter = address;
+        self.stack_push_u16(self.program_counter + 2 - 1);
+        let target_address = self.memory_read_u16(self.program_counter);
+        self.program_counter = target_address
     }
 
     pub fn RTS(&mut self){
-        let lo = self.stack_pop() as u16;
-        let hi = self.stack_pop() as u16;
-        let address = (hi << 8) | lo;
-        self.program_counter = address;
+        self.program_counter = self.stack_pop_u16() + 1;
     }
 
     pub fn LSR(&mut self, mode: &addressing_mode) {
@@ -1130,7 +1150,7 @@ impl CPU {
 
                 // RTI
                 0x40 => {
-                    self.status = self.stack_pop();
+                    self.status = (self.stack_pop() & 0b1110_1111) | 0b0010_0000;
                     let lo = self.stack_pop() as u16;
                     let hi = self.stack_pop() as u16;
                     self.program_counter = (hi << 8) | lo;
@@ -1207,61 +1227,61 @@ impl CPU {
 
                 //Unofficial Opcodes
                 
-                //KIL (JAM) [HLT]
-                0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
-                | 0xf2 => { /* do nothing */ }
+                // //KIL (JAM) [HLT]
+                // 0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
+                // | 0xf2 => { /* do nothing */ }
 
-                0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => { /* do nothing */ }
+                // 0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => { /* do nothing */ }
 
-                //DCP
-                0xc7 | 0xd7 | 0xCF | 0xdF | 0xdb | 0xd3 | 0xc3 => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.DCP(&opcode_object.address_mode);
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
-                }
+                // //DCP
+                // 0xc7 | 0xd7 | 0xCF | 0xdF | 0xdb | 0xd3 | 0xc3 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.DCP(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
 
-                //RLA
-                0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.RLA(&opcode_object.address_mode);
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
-                }
+                // //RLA
+                // 0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.RLA(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
 
-                //SLO
-                0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.SLO(&opcode_object.address_mode);
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
-                }
+                // //SLO
+                // 0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.SLO(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
 
-                //SRE
-                0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.SRE(&opcode_object.address_mode);
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
-                }
+                // //SRE
+                // 0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.SRE(&opcode_object.address_mode);
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
 
-                //SKB
-                0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {
-                    let opcode_object = opcode_map[&opcode];
-                    self.program_counter += ((opcode_object.bytes - 1) as u16);
-                }
+                // //SKB
+                // 0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
+                // }
 
-                //AXS
-                0xCB => {
-                    let opcode_object = opcode_map[&opcode];
-                    let addr = self.get_operand_address(&opcode_object.address_mode);
-                    let data = self.memory_read(addr);
-                    let x_and_a = self.register_x & self.register_a;
-                    let result = x_and_a.wrapping_sub(data);
+                // //AXS
+                // 0xCB => {
+                //     let opcode_object = opcode_map[&opcode];
+                //     let addr = self.get_operand_address(&opcode_object.address_mode);
+                //     let data = self.memory_read(addr);
+                //     let x_and_a = self.register_x & self.register_a;
+                //     let result = x_and_a.wrapping_sub(data);
 
-                    if data <= x_and_a {
-                        self.status = self.status | 0b0000_0001;
-                    }
-                    self.update_negative_zero_flags(result);
+                //     if data <= x_and_a {
+                //         self.status = self.status | 0b0000_0001;
+                //     }
+                //     self.update_negative_zero_flags(result);
 
-                    self.register_x = result;
-                }
+                //     self.register_x = result;
+                // }
 
                 /* ARR */
                 // 0x6B => {

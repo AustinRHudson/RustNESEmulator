@@ -17,7 +17,6 @@ use crate::test::*;
 fn main() {
     let bytes: Vec<u8> = std::fs::read("src/TestRoms/nestest.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
-    println!("{}", rom.mapper);
     let mut bus = Bus::new(rom);
     let mut cpu = CPU::new(bus);
     cpu.reset();

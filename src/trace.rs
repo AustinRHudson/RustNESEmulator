@@ -5,6 +5,7 @@ pub fn trace(cpu: &mut CPU) -> String {
     let ref opscodes: HashMap<u8, &'static opCode> = *opcode_map;
 
     let code = cpu.memory_read(cpu.program_counter);
+    //println!("opcode{}", code);
     let ops = opscodes[&code];
     let begin = cpu.program_counter;
     let mut hex_dump = vec![];
@@ -79,7 +80,7 @@ pub fn trace(cpu: &mut CPU) -> String {
             let address = cpu.memory_read_u16(begin + 1);
 
             match ops.address_mode {
-                addressing_mode::NoneAddressing | addressing_mode::Relative | addressing_mode::Accumulator=> {
+                addressing_mode::NoneAddressing | addressing_mode::Relative | addressing_mode::Accumulator | addressing_mode::Indirect=> {
                     if ops.code == 0x6c {
                         //jmp indirect
                         let jmp_addr = if address & 0x00FF == 0x00FF {
