@@ -292,60 +292,128 @@ lazy_static! {
         //TXS
         opCode::new(0x9A, 1, 2, addressing_mode::Implied, "TXS"),
         //TYA
-        opCode::new(0x98, 1, 2, addressing_mode::Implied, "TYA")
-        //KIL (JAM) [HLT]
-        // opCode::new(0x02, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x12, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x22, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x32, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x42, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x52, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x62, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x72, 1, 2, addressing_mode::Implied),
-        // opCode::new(0x92, 1, 2, addressing_mode::Implied),
-        // opCode::new(0xB2, 1, 2, addressing_mode::Implied),
-        // opCode::new(0xD2, 1, 2, addressing_mode::Implied),
-        // opCode::new(0xF2, 1, 2, addressing_mode::Implied),
-        // //DCP
-        // opCode::new(0xc7, 2, 5, addressing_mode::ZeroPage),
-        // opCode::new(0xd7, 2, 6, addressing_mode::ZeroPage_X),
-        // opCode::new(0xCF, 3, 6, addressing_mode::Absolute),
-        // opCode::new(0xdF, 3, 7, addressing_mode::Absolute_X),
-        // opCode::new(0xdb, 3, 7, addressing_mode::Absolute_Y),
-        // opCode::new(0xd3, 2, 8, addressing_mode::Indirect_Y),
-        // opCode::new(0xc3, 2, 8, addressing_mode::Indirect_X),
-        // //RLA
-        // opCode::new(0x27, 2, 5, addressing_mode::ZeroPage),
-        // opCode::new(0x37, 2, 6, addressing_mode::ZeroPage_X),
-        // opCode::new(0x2F, 3, 6, addressing_mode::Absolute),
-        // opCode::new(0x3F, 3, 7, addressing_mode::Absolute_X),
-        // opCode::new(0x3b, 3, 7, addressing_mode::Absolute_Y),
-        // opCode::new(0x33, 2, 8, addressing_mode::Indirect_Y),
-        // opCode::new(0x23, 2, 8, addressing_mode::Indirect_X),
-        // //SLO
-        // opCode::new(0x07, 2, 5, addressing_mode::ZeroPage),
-        // opCode::new(0x17, 2, 6, addressing_mode::ZeroPage_X),
-        // opCode::new(0x0F, 3, 6, addressing_mode::Absolute),
-        // opCode::new(0x1f, 3, 7, addressing_mode::Absolute_X),
-        // opCode::new(0x1b, 3, 7, addressing_mode::Absolute_Y),
-        // opCode::new(0x03, 2, 8, addressing_mode::Indirect_X),
-        // opCode::new(0x13, 2, 8, addressing_mode::Indirect_Y),
-        // //SRE
-        // opCode::new(0x47, 2, 5, addressing_mode::ZeroPage),
-        // opCode::new(0x57, 2, 6, addressing_mode::ZeroPage_X),
-        // opCode::new(0x4F, 3, 6, addressing_mode::Absolute),
-        // opCode::new(0x5f, 3, 7, addressing_mode::Absolute_X),
-        // opCode::new(0x5b, 3, 7, addressing_mode::Absolute_Y),
-        // opCode::new(0x43, 2, 8, addressing_mode::Indirect_X),
-        // opCode::new(0x53, 2, 8, addressing_mode::Indirect_Y),
-        // //SKB
-        // opCode::new(0x80, 2, 2, addressing_mode::Immediate),
-        // opCode::new(0x82, 2, 2, addressing_mode::Immediate),
-        // opCode::new(0x89, 2, 2, addressing_mode::Immediate),
-        // opCode::new(0xc2, 2, 2, addressing_mode::Immediate),
-        // opCode::new(0xe2, 2, 2, addressing_mode::Immediate),
-        // //AXS
-        // opCode::new(0xCB, 2, 2, addressing_mode::Immediate),
+        opCode::new(0x98, 1, 2, addressing_mode::Implied, "TYA"),
+
+        //Unoffical
+        opCode::new(0xc7, 2, 5, addressing_mode::ZeroPage, "*DCP"),
+        opCode::new(0xd7, 2, 6, addressing_mode::ZeroPage_X, "*DCP"),
+        opCode::new(0xCF, 3, 6, addressing_mode::Absolute, "*DCP"),
+        opCode::new(0xdF, 3, 7, addressing_mode::Absolute_X, "*DCP"),
+        opCode::new(0xdb, 3, 7, addressing_mode::Absolute_Y, "*DCP"),
+        opCode::new(0xd3, 2, 8, addressing_mode::Indirect_Y, "*DCP"),
+        opCode::new(0xc3, 2, 8, addressing_mode::Indirect_X, "*DCP"),
+
+        opCode::new(0x27, 2, 5, addressing_mode::ZeroPage, "*RLA"),
+        opCode::new(0x37, 2, 6, addressing_mode::ZeroPage_X, "*RLA"),
+        opCode::new(0x2F, 3, 6, addressing_mode::Absolute, "*RLA"),
+        opCode::new(0x3F, 3, 7, addressing_mode::Absolute_X, "*RLA"),
+        opCode::new(0x3b, 3, 7, addressing_mode::Absolute_Y, "*RLA"),
+        opCode::new(0x33, 2, 8, addressing_mode::Indirect_Y, "*RLA"),
+        opCode::new(0x23, 2, 8, addressing_mode::Indirect_X, "*RLA"),
+
+        opCode::new(0x07, 2, 5, addressing_mode::ZeroPage, "*SLO"),
+        opCode::new(0x17, 2, 6, addressing_mode::ZeroPage_X, "*SLO"),
+        opCode::new(0x0F, 3, 6, addressing_mode::Absolute, "*SLO"),
+        opCode::new(0x1f, 3, 7, addressing_mode::Absolute_X, "*SLO"),
+        opCode::new(0x1b, 3, 7, addressing_mode::Absolute_Y, "*SLO"),
+        opCode::new(0x03, 2, 8, addressing_mode::Indirect_X, "*SLO"),
+        opCode::new(0x13, 2, 8, addressing_mode::Indirect_Y, "*SLO"),
+
+        opCode::new(0x47, 2, 5, addressing_mode::ZeroPage, "*SRE"),
+        opCode::new(0x57, 2, 6, addressing_mode::ZeroPage_X, "*SRE"),
+        opCode::new(0x4F, 3, 6, addressing_mode::Absolute, "*SRE"),
+        opCode::new(0x5f, 3, 7, addressing_mode::Absolute_X, "*SRE"),
+        opCode::new(0x5b, 3, 7, addressing_mode::Absolute_Y, "*SRE"),
+        opCode::new(0x43, 2, 8, addressing_mode::Indirect_X, "*SRE"),
+        opCode::new(0x53, 2, 8, addressing_mode::Indirect_Y, "*SRE"),
+
+        opCode::new(0x80, 2, 2, addressing_mode::Immediate, "*NOP"),
+        opCode::new(0x82, 2, 2, addressing_mode::Immediate, "*NOP"),
+        opCode::new(0x89, 2, 2, addressing_mode::Immediate, "*NOP"),
+        opCode::new(0xc2, 2, 2, addressing_mode::Immediate, "*NOP"),
+        opCode::new(0xe2, 2, 2, addressing_mode::Immediate, "*NOP"),
+
+        opCode::new(0xCB, 2, 2, addressing_mode::Immediate, "*AXS"),
+        opCode::new(0x6B, 2, 2, addressing_mode::Immediate, "*ARR"),
+        opCode::new(0xeb, 2, 2, addressing_mode::Immediate, "*SBC"),
+        opCode::new(0x0b, 2, 2, addressing_mode::Immediate, "*ANC"),
+        opCode::new(0x2b, 2, 2, addressing_mode::Immediate, "*ANC"),
+        opCode::new(0x4b, 2, 2, addressing_mode::Immediate, "*ALR"),
+
+        opCode::new(0x04, 2, 3, addressing_mode::ZeroPage, "*NOP"),
+        opCode::new(0x44, 2, 3, addressing_mode::ZeroPage, "*NOP"),
+        opCode::new(0x64, 2, 3, addressing_mode::ZeroPage, "*NOP"),
+        opCode::new(0x14, 2, 4, addressing_mode::ZeroPage_X, "*NOP"),
+        opCode::new(0x34, 2, 4, addressing_mode::ZeroPage_X, "*NOP"),
+        opCode::new(0x54, 2, 4, addressing_mode::ZeroPage_X, "*NOP"),
+        opCode::new(0x74, 2, 4, addressing_mode::ZeroPage_X, "*NOP"),
+        opCode::new(0xd4, 2, 4, addressing_mode::ZeroPage_X, "*NOP"),
+        opCode::new(0xf4, 2, 4, addressing_mode::ZeroPage_X, "*NOP"),
+        opCode::new(0x0c, 3, 4, addressing_mode::Absolute, "*NOP"),
+        opCode::new(0x1c, 3, 4, addressing_mode::Absolute_X, "*NOP"),
+        opCode::new(0x3c, 3, 4, addressing_mode::Absolute_X, "*NOP"),
+        opCode::new(0x5c, 3, 4, addressing_mode::Absolute_X, "*NOP"),
+        opCode::new(0x7c, 3, 4, addressing_mode::Absolute_X, "*NOP"),
+        opCode::new(0xdc, 3, 4, addressing_mode::Absolute_X, "*NOP"),
+        opCode::new(0xfc, 3, 4, addressing_mode::Absolute_X, "*NOP"),
+
+        opCode::new(0x67, 2, 5, addressing_mode::ZeroPage, "*RRA"),
+        opCode::new(0x77, 2, 6, addressing_mode::ZeroPage_X, "*RRA"),
+        opCode::new(0x6f, 3, 6, addressing_mode::Absolute, "*RRA"),
+        opCode::new(0x7f, 3, 7, addressing_mode::Absolute_X, "*RRA"),
+        opCode::new(0x7b, 3, 7, addressing_mode::Absolute_Y, "*RRA"),
+        opCode::new(0x63, 2, 8, addressing_mode::Indirect_X, "*RRA"),
+        opCode::new(0x73, 2, 8, addressing_mode::Indirect_Y, "*RRA"),
+
+        opCode::new(0xe7, 2, 5, addressing_mode::ZeroPage, "*ISB"),
+        opCode::new(0xf7, 2, 6, addressing_mode::ZeroPage_X, "*ISB"),
+        opCode::new(0xef, 3, 6, addressing_mode::Absolute, "*ISB"),
+        opCode::new(0xff, 3, 7, addressing_mode::Absolute_X, "*ISB"),
+        opCode::new(0xfb, 3, 7, addressing_mode::Absolute_Y, "*ISB"),
+        opCode::new(0xe3, 2, 8, addressing_mode::Indirect_X, "*ISB"),
+        opCode::new(0xf3, 2, 8, addressing_mode::Indirect_Y, "*ISB"),
+
+        opCode::new(0x02, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x12, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x22, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x32, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x42, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x52, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x62, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x72, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x92, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0xb2, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0xd2, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0xf2, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+
+        opCode::new(0x1a, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x3a, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x5a, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0x7a, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0xda, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+        opCode::new(0xfa, 1, 2, addressing_mode::NoneAddressing, "*NOP"),
+
+        opCode::new(0xab, 2, 3, addressing_mode::Immediate, "*LXA"),
+        opCode::new(0x8b, 2, 3, addressing_mode::Immediate, "*XAA"),
+        opCode::new(0xbb, 3, 2, addressing_mode::Absolute_Y, "*LAS"),
+        opCode::new(0x9b, 3, 2, addressing_mode::Absolute_Y, "*TAS"),
+        opCode::new(0x93, 2, 8, addressing_mode::Indirect_Y, "*AHX"),
+        opCode::new(0x9f, 3, 4, addressing_mode::Absolute_Y, "*AHX"),
+        opCode::new(0x9e, 3, 4, addressing_mode::Absolute_Y, "*SHX"),
+        opCode::new(0x9c, 3, 4, addressing_mode::Absolute_X, "*SHY"),
+
+        opCode::new(0xa7, 2, 3, addressing_mode::ZeroPage, "*LAX"),
+        opCode::new(0xb7, 2, 4, addressing_mode::ZeroPage_Y, "*LAX"),
+        opCode::new(0xaf, 3, 4, addressing_mode::Absolute, "*LAX"),
+        opCode::new(0xbf, 3, 4, addressing_mode::Absolute_Y, "*LAX"),
+        opCode::new(0xa3, 2, 6, addressing_mode::Indirect_X, "*LAX"),
+        opCode::new(0xb3, 2, 5, addressing_mode::Indirect_Y, "*LAX"),
+
+        opCode::new(0x87, 2, 3, addressing_mode::ZeroPage, "*SAX"),
+        opCode::new(0x97, 2, 4, addressing_mode::ZeroPage_Y, "*SAX"),
+        opCode::new(0x8f, 3, 4, addressing_mode::Absolute, "*SAX"),
+        opCode::new(0x83, 2, 6, addressing_mode::Indirect_X, "*SAX"),
+
     ];
 
     pub static ref opcode_map: HashMap<u8, &'static opCode> = {
@@ -1228,217 +1296,217 @@ impl CPU {
                 //Unofficial Opcodes
                 
                 // //KIL (JAM) [HLT]
-                // 0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
-                // | 0xf2 => { /* do nothing */ }
+                0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2
+                | 0xf2 => { /* do nothing */ }
 
-                // 0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => { /* do nothing */ }
+                0x1a | 0x3a | 0x5a | 0x7a | 0xda | 0xfa => { /* do nothing */ }
 
-                // //DCP
-                // 0xc7 | 0xd7 | 0xCF | 0xdF | 0xdb | 0xd3 | 0xc3 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.DCP(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                //DCP
+                0xc7 | 0xd7 | 0xCF | 0xdF | 0xdb | 0xd3 | 0xc3 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.DCP(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
 
-                // //RLA
-                // 0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.RLA(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                //RLA
+                0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.RLA(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
 
-                // //SLO
-                // 0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.SLO(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                //SLO
+                0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.SLO(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
 
-                // //SRE
-                // 0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.SRE(&opcode_object.address_mode);
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                //SRE
+                0x47 | 0x57 | 0x4F | 0x5f | 0x5b | 0x43 | 0x53 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.SRE(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
 
-                // //SKB
-                // 0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.program_counter += ((opcode_object.bytes - 1) as u16);
-                // }
+                //SKB
+                0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
+                }
 
-                // //AXS
-                // 0xCB => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     let addr = self.get_operand_address(&opcode_object.address_mode);
-                //     let data = self.memory_read(addr);
-                //     let x_and_a = self.register_x & self.register_a;
-                //     let result = x_and_a.wrapping_sub(data);
+                //AXS
+                0xCB => {
+                    let opcode_object = opcode_map[&opcode];
+                    let addr = self.get_operand_address(&opcode_object.address_mode);
+                    let data = self.memory_read(addr);
+                    let x_and_a = self.register_x & self.register_a;
+                    let result = x_and_a.wrapping_sub(data);
 
-                //     if data <= x_and_a {
-                //         self.status = self.status | 0b0000_0001;
-                //     }
-                //     self.update_negative_zero_flags(result);
+                    if data <= x_and_a {
+                        self.status = self.status | 0b0000_0001;
+                    }
+                    self.update_negative_zero_flags(result);
 
-                //     self.register_x = result;
-                // }
+                    self.register_x = result;
+                }
 
                 /* ARR */
-                // 0x6B => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.AND(&opcode_object.address_mode);
-                //     let addr = self.get_operand_address(&opcode_object.address_mode);
-                //     let data = self.memory_read(addr);
-                //     self.AND(&opcode_object.address_mode);
-                //     self.ROR(&addressing_mode::Accumulator);
-                //     //todo: registers
-                //     let result = self.register_a;
-                //     let bit_5 = (result >> 5) & 1;
-                //     let bit_6 = (result >> 6) & 1;
+                0x6B => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.AND(&opcode_object.address_mode);
+                    self.ROR(&addressing_mode::Accumulator);
+                    //todo: registers
+                    let result = self.register_a;
+                    let bit_5 = (result >> 5) & 1;
+                    let bit_6 = (result >> 6) & 1;
 
-                //     if bit_6 == 1 {
-                //         self.status.insert(CpuFlags::CARRY)
-                //     } else {
-                //         self.status.remove(CpuFlags::CARRY)
-                //     }
+                    if bit_6 == 1 {
+                        self.status = self.status | 0b0000_0001;
+                    } else {
+                        self.status = self.status & 0b1111_1110;
+                    }
 
-                //     if bit_5 ^ bit_6 == 1 {
-                //         self.status.insert(CpuFlags::OVERFLOW);
-                //     } else {
-                //         self.status.remove(CpuFlags::OVERFLOW);
-                //     }
+                    if bit_5 ^ bit_6 == 1 {
+                        self.status = self.status | 0b0100_0000;
+                    } else {
+                        self.status = self.status & 0b1011_1111;
+                    }
 
-                //     self.update_negative_zero_flags(result);
-                // }
+                    self.update_negative_zero_flags(result);
+                }
 
                 // /* unofficial SBC */
-                // 0xeb => {
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     let data = self.memory_read(addr);
-                //     self.sub_from_register_a(data);
-                // }
+                0xeb => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.SBC(&opcode_object.address_mode);
+                }
 
-                // /* ANC */
-                // 0x0b | 0x2b => {
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     let data = self.memory_read(addr);
-                //     self.and_with_register_a(data);
-                //     if self.status.contains(CpuFlags::NEGATIV) {
-                //         self.status.insert(CpuFlags::CARRY);
-                //     } else {
-                //         self.status.remove(CpuFlags::CARRY);
-                //     }
-                // }
+                /* ANC */
+                0x0b | 0x2b => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.AND(&opcode_object.address_mode);
+                    if self.status & 0b1000_0000 == 0b1000_0000 {
+                        self.status = self.status | 0b0000_0001;
+                    } else {
+                        self.status = self.status & 0b1111_1110;
+                    }
+                }
 
-                // /* ALR */
-                // 0x4b => {
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     let data = self.memory_read(addr);
-                //     self.and_with_register_a(data);
-                //     self.lsr_accumulator();
-                // }
+                /* ALR */
+                0x4b => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.AND(&opcode_object.address_mode);
+                    self.LSR(&addressing_mode::Accumulator);
+                }
 
                 // //todo: test for everything below
 
-                // /* RRA */
-                // 0x67 | 0x77 | 0x6f | 0x7f | 0x7b | 0x63 | 0x73 => {
-                //     let data = self.ror(&opcode.mode);
-                //     self.add_to_register_a(data);
-                // }
+                /* RRA */
+                0x67 | 0x77 | 0x6f | 0x7f | 0x7b | 0x63 | 0x73 => {
+                    let opcode_object = opcode_map[&opcode];
+                    let data = self.ROR(&opcode_object.address_mode);
+                    self.ADC(&opcode_object.address_mode);
+                }
 
-                // /* ISB */
-                // 0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => {
-                //     let data = self.inc(&opcode.mode);
-                //     self.sub_from_register_a(data);
-                // }
+                /* ISB */
+                0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.INC(&opcode_object.address_mode);
+                    self.SBC(&opcode_object.address_mode);
+                }
 
-                // /* LAX */
-                // 0xa7 | 0xb7 | 0xaf | 0xbf | 0xa3 | 0xb3 => {
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     let data = self.memory_read(addr);
-                //     self.set_register_a(data);
-                //     self.register_x = self.register_a;
-                // }
+                /* LAX */
+                0xa7 | 0xb7 | 0xaf | 0xbf | 0xa3 | 0xb3 => {
+                    let opcode_object = opcode_map[&opcode];
+                    let addr = self.get_operand_address(&opcode_object.address_mode);
+                    let data = self.memory_read(addr);
+                    self.register_a = data;
+                    self.update_negative_zero_flags(self.register_a);
+                    self.register_x = self.register_a;
+                }
 
-                // /* SAX */
-                // 0x87 | 0x97 | 0x8f | 0x83 => {
-                //     let data = self.register_a & self.register_x;
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     self.memory_write(addr, data);
-                // }
+                /* SAX */
+                0x87 | 0x97 | 0x8f | 0x83 => {
+                    let opcode_object = opcode_map[&opcode];
+                    let data = self.register_a & self.register_x;
+                    let addr = self.get_operand_address(&opcode_object.address_mode);
+                    self.memory_write(addr, data);
+                }
 
-                // /* LXA */
-                // 0xab => {
-                //     let opcode_object = opcode_map[&opcode];
-                //     self.LDA(&opcode_object.address_mode);
-                //     self.register_x = self.register_a;
-                //     self.update_negative_zero_flags(self.register_x);
-                // }
+                /* LXA */
+                0xab => {
+                    let opcode_object = opcode_map[&opcode];
+                    let opcode_object = opcode_map[&opcode];
+                    self.LDA(&opcode_object.address_mode);
+                    self.register_x = self.register_a;
+                    self.update_negative_zero_flags(self.register_x);
+                }
 
-                // /* XAA */
-                // 0x8b => {
-                //     self.register_a = self.register_x;
-                //     self.update_zero_and_negative_flags(self.register_a);
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     let data = self.memory_read(addr);
-                //     self.and_with_register_a(data);
-                // }
+                /* XAA */
+                0x8b => {
+                    let opcode_object = opcode_map[&opcode];
+                    self.register_a = self.register_x;
+                    self.update_negative_zero_flags(self.register_a);
+                    self.AND(&opcode_object.address_mode);
+                }
 
-                // /* LAS */
-                // 0xbb => {
-                //     let addr = self.get_operand_address(&opcode.mode);
-                //     let mut data = self.memory_read(addr);
-                //     data = data & self.stack_pointer;
-                //     self.register_a = data;
-                //     self.register_x = data;
-                //     self.stack_pointer = data;
-                //     self.update_zero_and_negative_flags(data);
-                // }
+                /* LAS */
+                0xbb => {
+                    let opcode_object = opcode_map[&opcode];
+                    let addr = self.get_operand_address(&opcode_object.address_mode);
+                    let mut data = self.memory_read(addr);
+                    data = data & self.stack_pointer;
+                    self.register_a = data;
+                    self.register_x = data;
+                    self.stack_pointer = data;
+                    self.update_negative_zero_flags(data);
+                }
 
-                // /* TAS */
-                // 0x9b => {
-                //     let data = self.register_a & self.register_x;
-                //     self.stack_pointer = data;
-                //     let mem_address =
-                //         self.memory_read_u16(self.program_counter) + self.register_y as u16;
+                /* TAS */
+                0x9b => {
+                    let data = self.register_a & self.register_x;
+                    self.stack_pointer = data;
+                    let mem_address =
+                        self.memory_read_u16(self.program_counter) + self.register_y as u16;
 
-                //     let data = ((mem_address >> 8) as u8 + 1) & self.stack_pointer;
-                //     self.memory_write(mem_address, data)
-                // }
+                    let data = ((mem_address >> 8) as u8 + 1) & self.stack_pointer;
+                    self.memory_write(mem_address, data)
+                }
 
-                // /* AHX  Indirect Y */
-                // 0x93 => {
-                //     let pos: u8 = self.memory_read(self.program_counter);
-                //     let mem_address = self.memory_read_u16(pos as u16) + self.register_y as u16;
-                //     let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
-                //     self.memory_write(mem_address, data)
-                // }
+                /* AHX  Indirect Y */
+                0x93 => {
+                    let pos: u8 = self.memory_read(self.program_counter);
+                    let mem_address = self.memory_read_u16(pos as u16) + self.register_y as u16;
+                    let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
+                    self.memory_write(mem_address, data)
+                }
 
-                // /* AHX Absolute Y*/
-                // 0x9f => {
-                //     let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
+                /* AHX Absolute Y*/
+                0x9f => {
+                    let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
 
-                //     let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
-                //     self.memory_write(mem_address, data)
-                // }
+                    let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
+                    self.memory_write(mem_address, data)
+                }
 
-                // /* SHX */
-                // 0x9e => {
-                //     let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
+                /* SHX */
+                0x9e => {
+                    let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
 
-                //     // todo if cross page boundry {
-                //     //     mem_address &= (self.x as u16) << 8;
-                //     // }
-                //     let data = self.register_x & ((mem_address >> 8) as u8 + 1);
-                //     self.memory_write(mem_address, data)
-                // }
+                    // todo if cross page boundry {
+                    //     mem_address &= (self.x as u16) << 8;
+                    // }
+                    let data = self.register_x & ((mem_address >> 8) as u8 + 1);
+                    self.memory_write(mem_address, data)
+                }
 
-                // /* SHY */
-                // 0x9c => {
-                //     let mem_address = self.memory_read_u16(self.program_counter) + self.register_x as u16;
-                //     let data = self.register_y & ((mem_address >> 8) as u8 + 1);
-                //     self.memory_write(mem_address, data)
-                // }
+                /* SHY */
+                0x9c => {
+                    let mem_address = self.memory_read_u16(self.program_counter) + self.register_x as u16;
+                    let data = self.register_y & ((mem_address >> 8) as u8 + 1);
+                    self.memory_write(mem_address, data)
+                }
 
                 _ => {}//todo!("Unimplemented opcode: {:02X}", opcode),
             }
