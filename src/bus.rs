@@ -73,6 +73,15 @@ impl Mem for Bus {
            0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
             panic!("Attempt to read from write-only PPU address {:x}", addr);
             }
+
+            0x2002 => {
+                return self.ppu.read_status_register();
+            }
+
+            0x2004 => {
+                return self.ppu.read_oam_data();
+            }
+
             0x2007 => self.ppu.read_data(),
 
             0x2008..=PPU_REGISTERS_MIRRORS_END => {
@@ -101,6 +110,22 @@ impl Mem for Bus {
                 self.ppu.write_control_register(data);
            }
 
+           0x2002 => {
+            panic!("attempting to write to read only register");
+           }
+
+           0x2003 => {
+            self.ppu.write_oam_address(data);
+           }
+
+           0x2004 => {
+            self.ppu.write_oam_data(data);
+           }
+
+           0x2005 => {
+            self.ppu.write_scroll_register(data);
+           }
+
            0x2006 => {
                 self.ppu.write_ppu_address(data);
            }
@@ -114,6 +139,13 @@ impl Mem for Bus {
                todo!("PPU is not supported yet");
            }
 
+           0x4014 => {
+            let hi = (data as u16) << 8;
+                for i in 0..0xFF {
+                    self.ppu.oam_data[i as usize] = self.memory_read(hi | i);
+                }
+           }
+
             0x8000..=0xFFFF => {
 						//panic!("Attempt to write to Cartridge ROM space")
 			}
@@ -123,4 +155,17 @@ impl Mem for Bus {
            }
        }
    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::cartridge::test;
+
+    #[test]
+    fn test_mem_read_write_to_ram() {
+        let mut bus = Bus::new(test::test_rom(vec![]));
+        bus.memory_write(0x01, 0x55);
+        assert_eq!(bus.memory_read(0x01), 0x55);
+    }
 }
