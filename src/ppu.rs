@@ -15,6 +15,8 @@ pub struct ppu {
     pub status_register: StatusRegister,
     pub oam_address: u8,
     pub scroll_register: ScrollRegister,
+    scanline: u16,
+    cycles: usize,
 }
 
 impl ppu {
@@ -31,8 +33,32 @@ impl ppu {
             mask_register: MaskRegister::new(),
             status_register: StatusRegister::new(),
             oam_address: 0,
-            scroll_register: ScrollRegister::new()
+            scroll_register: ScrollRegister::new(),
+            scanline: 0,
+            cycles: 0
         }
+    }
+
+    pub fn tick(&mut self, ticks: u8) -> bool{
+        self.cycles += ticks as usize;
+        if(self.cycles >= 341){
+            self.cycles -= 341;
+            self.scanline += 1;
+
+            if(self.scanline == 241){
+                if(self.control_register.generate_nmi()){
+                    self.status_register.set_vblank(true);
+                }
+            }
+
+            if(self.scanline >= 262){
+                self.scanline = 0;
+                self.status_register.clear_vblank();
+                return true;
+            }
+        }
+        return false;
+
     }
 
     pub fn write_ppu_address(&mut self, data: u8){
@@ -261,6 +287,10 @@ bitflags!{
             }else{
                 return 1
             }
+        }
+
+        pub fn generate_nmi(&mut self) -> bool{
+            return self.contains(ControlRegister::GENERATE_NMI);
         }
     
         pub fn update(&mut self, data: u8){

@@ -25,6 +25,7 @@ pub struct CPU {
     pub stack_pointer: u8,
     pub status: u8,
     pub bus: Bus,
+    additional_cycles: u8,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -457,6 +458,7 @@ impl CPU {
             stack_pointer: 0,
             status: 0,
             bus: bus,
+            additional_cycles: 0,
         }
     }
 
@@ -560,12 +562,20 @@ impl CPU {
 
             addressing_mode::Absolute_X => {
                 let address = self.memory_read_u16(self.program_counter);
-                return address.wrapping_add(self.register_x as u16);
+                let offset_address = address.wrapping_add(self.register_x as u16);
+                if((offset_address & 0x00FF) < (address & 0x00FF)){
+                    self.additional_cycles += 1;
+                }
+                return offset_address;
             }
 
             addressing_mode::Absolute_Y => {
                 let address = self.memory_read_u16(self.program_counter);
-                return address.wrapping_add(self.register_y as u16);
+                let offset_address = address.wrapping_add(self.register_y as u16);
+                if((offset_address & 0x00FF) < (address & 0x00FF)){
+                    self.additional_cycles += 1;
+                }
+                return offset_address
             }
 
             addressing_mode::Indirect => {
@@ -601,13 +611,25 @@ impl CPU {
                 let hi = self.memory_read((base as u8).wrapping_add(1) as u16);
                 let deref_base = (hi as u16) << 8 | (lo as u16);
                 let deref = deref_base.wrapping_add(self.register_y as u16);
-                deref
+                if(((deref & 0x00FF) < (deref_base & 0x00FF))){
+                    self.additional_cycles += 1;
+                }
+                return deref;
             }
 
             _ => {
                 todo!("addressing_mode: {:?}", mode);
             }
         }
+    }
+
+    pub fn branch(&mut self){
+        let value: i8 = (self.memory_read(self.program_counter) as i8);
+        self.additional_cycles += 1;
+        if((self.program_counter & 0xFF00) != (self.program_counter.wrapping_add(value as u16) & 0xFF00)){
+            self.additional_cycles += 1;
+        }
+        self.program_counter = self.program_counter.wrapping_add(value as u16);
     }
 
     pub fn LDA(&mut self, mode: &addressing_mode) {
@@ -651,31 +673,21 @@ impl CPU {
 
     pub fn BCC(&mut self) {
         if ((0b0000_0001 & self.status) != 0b0000_0001) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            //println!("{}", (value as u16) >> 8);
-            //println!("bcc pc preadd {:#x}", self.program_counter);
-            //self.program_counter += (value as u16);
-
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
-            //println!("bcc pc postadd {:#x}", self.program_counter);
+            self.branch();
         }
         self.program_counter += 1;
     }
 
     pub fn BCS(&mut self) {
         if ((0b0000_0001 & self.status) == 0b0000_0001) {
-            //println!("bcc pc preadd {:#x}", self.program_counter);
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
-            //println!("bcc pc postadd {:#x}", self.program_counter);
+            self.branch();
         }
         self.program_counter += 1;
     }
 
     pub fn BEQ(&mut self) {
         if ((0b0000_0010 & self.status) == 0b0000_0010) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            self.branch();
         }
         self.program_counter += 1;
     }
@@ -703,40 +715,35 @@ impl CPU {
 
     pub fn BMI(&mut self) {
         if ((0b1000_0000 & self.status) == 0b1000_0000) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            self.branch();
         }
         self.program_counter += 1;
     }
 
     pub fn BNE(&mut self) {
         if ((0b0000_0010 & self.status) != 0b0000_0010) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            self.branch();
         }
         self.program_counter += 1;
     }
 
     pub fn BPL(&mut self) {
         if ((0b1000_0000 & self.status) != 0b1000_0000) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            self.branch();
         }
         self.program_counter += 1;
     }
 
     pub fn BVC(&mut self) {
         if ((0b0100_0000 & self.status) != 0b0100_0000) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            self.branch();
         }
         self.program_counter += 1;
     }
 
     pub fn BVS(&mut self) {
         if ((0b0100_0000 & self.status) == 0b0100_0000) {
-            let value: i8 = (self.memory_read(self.program_counter) as i8);
-            self.program_counter = self.program_counter.wrapping_add(value as u16);
+            self.branch();
         }
         self.program_counter += 1;
     }
@@ -965,6 +972,7 @@ impl CPU {
     where F: FnMut(&mut CPU) {
         loop {
             callback(self);
+            self.additional_cycles = 0;
             //println!("{}", self.status);
             // let opcode = self.memory[self.program_counter as usize];
             let opcode = self.memory_read(self.program_counter);
@@ -1510,6 +1518,8 @@ impl CPU {
 
                 _ => {}//todo!("Unimplemented opcode: {:02X}", opcode),
             }
+            let opcode_cycles = opcode_map[&opcode].cycles;
+            self.bus.tick(opcode_cycles);let opcode_object = opcode_map[&opcode];
         }
     }
 }

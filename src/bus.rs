@@ -33,6 +33,7 @@ pub struct Bus {
 	cpu_vram: [u8; 2048],
 	prg_rom: Vec<u8>,
     ppu: ppu,
+    cycles: usize,
 }
 
 impl Bus {
@@ -43,6 +44,7 @@ impl Bus {
 			cpu_vram: [0; 2048],
 			prg_rom: rom.prg_rom,
             ppu: NesPPU,
+            cycles: 0,
 		}
 	}
 
@@ -53,7 +55,12 @@ impl Bus {
 				addr = addr % 0x4000;
 		}
 		self.prg_rom[addr as usize]
-}
+    }
+
+    pub fn tick(&mut self, ticks: u8){
+        self.cycles += ticks as usize;
+        self.ppu.tick(ticks * 3);
+    }
 }
 
 const RAM: u16 = 0x0000;
