@@ -46,11 +46,11 @@ pub enum addressing_mode {
 }
 
 pub trait Mem {
-    fn memory_read(&self, address: u16) -> u8;
+    fn memory_read(&mut self, address: u16) -> u8;
 
     fn memory_write(&mut self, address: u16, value: u8);
 
-    fn memory_read_u16(&self, address: u16) -> u16 {
+    fn memory_read_u16(&mut self, address: u16) -> u16 {
         let lo = self.memory_read(address) as u16;
         let hi = self.memory_read(address + 1) as u16;
         return (hi << 8) | lo;
@@ -358,7 +358,7 @@ lazy_static! {
 }
 
 impl Mem for CPU {
-    fn memory_read(&self, address: u16) -> u8 {
+    fn memory_read(&mut self, address: u16) -> u8 {
         // return self.memory[address as usize];
         return self.bus.memory_read(address)
     }
@@ -368,7 +368,7 @@ impl Mem for CPU {
         return self.bus.memory_write(address, value)
     }
 
-    fn memory_read_u16(&self, address: u16) -> u16 {
+    fn memory_read_u16(&mut self, address: u16) -> u16 {
         self.bus.memory_read_u16(address)
     }
   
@@ -466,7 +466,7 @@ impl CPU {
         }
     }
 
-    pub fn get_operand_address(&self, mode: &addressing_mode) -> u16 {
+    pub fn get_operand_address(&mut self, mode: &addressing_mode) -> u16 {
         match mode {
             addressing_mode::Immediate => {
                 return self.program_counter;

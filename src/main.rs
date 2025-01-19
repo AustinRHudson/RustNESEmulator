@@ -6,12 +6,14 @@ mod opcodes;
 mod tests;
 mod cartridge;
 mod trace;
+mod ppu;
 use crate::opcodes::*;
 use crate::cpu::*;
 use crate::bus::*;
 use crate::cartridge::*;
 use crate::trace::*;
 use crate::test::*;
+use crate::ppu::*;
 
 
 fn main() {
