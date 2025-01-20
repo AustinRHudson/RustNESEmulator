@@ -1,8 +1,10 @@
 use crate::cpu::*;
 use crate::cartridge::*;
+use crate::joypad;
 use crate::ppu::*;
 use crate::render::*;
 use crate::frame::*;
+use crate::joypad::*;
 
 //  _______________ $10000  _______________
 // | PRG-ROM       |       |               |
@@ -36,13 +38,14 @@ pub struct Bus <'call>{
 	prg_rom: Vec<u8>,
     ppu: ppu,
     cycles: usize,
-    gameloop_callback: Box<dyn FnMut(&ppu) + 'call>,
+    gameloop_callback: Box<dyn FnMut(&ppu, &mut Joypad) + 'call>,
+    joypad: Joypad,
 }
 
 impl <'a>Bus<'a> {
 	pub fn new<'call, F>(rom: Rom, gameloop_callback: F) -> Bus<'call>
     where
-        F: FnMut(&ppu) + 'call,
+        F: FnMut(&ppu, &mut Joypad) + 'call,
     {
         let ppu = ppu::new(rom.chr_rom, rom.screen_mirroring);
 
@@ -52,6 +55,7 @@ impl <'a>Bus<'a> {
             ppu: ppu,
             cycles: 0,
             gameloop_callback: Box::from(gameloop_callback),
+            joypad: Joypad::new()
         }
     }
 
@@ -70,7 +74,7 @@ impl <'a>Bus<'a> {
         self.ppu.tick(ticks * 3);
         let nmi_after = self.ppu.nmi_interrupt.is_some();
         if(!nmi_before && nmi_after){
-            (self.gameloop_callback)(&self.ppu);
+            (self.gameloop_callback)(&self.ppu, &mut self.joypad);
         }
     }
 
@@ -112,6 +116,14 @@ impl Mem for Bus<'_> {
             0x2008..=PPU_REGISTERS_MIRRORS_END => {
                 let mirror_down_addr = addr & 0b00100000_00000111;
                 self.memory_read(mirror_down_addr)
+            }
+
+            0x4016 => {
+                return self.joypad.read_joypad();
+            }
+
+            0x4017 => {
+                0
             }
 
 			0x8000..= 0xFFFF => self.read_prg_rom(addr),
@@ -168,7 +180,7 @@ impl Mem for Bus<'_> {
         }
 
         0x4016 => {
-            // ignore joypad 1;
+            self.joypad.write_joypad(data);
         }
 
         0x4017 => {
