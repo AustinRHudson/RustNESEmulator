@@ -17,14 +17,14 @@ use crate::bus::*;
 
 
 
-pub struct CPU {
+pub struct CPU<'a> {
     pub register_a: u8,
     pub register_x: u8,
     pub register_y: u8,
     pub program_counter: u16,
     pub stack_pointer: u8,
     pub status: u8,
-    pub bus: Bus,
+    pub bus: Bus<'a>,
     additional_cycles: u8,
 }
 
@@ -454,7 +454,7 @@ lazy_static! {
     };
 }
 
-impl Mem for CPU {
+impl Mem for CPU<'_> {
     fn memory_read(&mut self, address: u16) -> u8 {
         // return self.memory[address as usize];
         return self.bus.memory_read(address)
@@ -476,8 +476,8 @@ impl Mem for CPU {
 
 const stack_reset: u8 = 0xFD;
 
-impl CPU {
-    pub fn new(bus: Bus) -> Self {
+impl <'a>CPU<'a> {
+    pub fn new<'b>(bus: Bus<'b>) -> CPU<'b> {
         CPU {
             register_a: 0,
             register_x: 0,
@@ -495,7 +495,7 @@ impl CPU {
         self.register_x = 0;
         self.register_y = 0;
         self.stack_pointer = stack_reset;
-        self.status = 0b0001_1000;
+        self.status = 0b0010_0100;
         let pc = self.memory_read_u16(0xFFFC);
         // println!("{:02x}", self.memory_read(0xFFFC));
         // println!("{:02x}", self.memory_read(0xFFFD));
@@ -817,6 +817,7 @@ impl CPU {
 
     pub fn LDX(&mut self, mode: &addressing_mode) {
         let address = self.get_operand_address(mode);
+        //println!("{:x}", address);
         let value = self.memory_read(address);
 
         self.register_x = value;
@@ -1006,9 +1007,6 @@ impl CPU {
         self.program_counter = self.memory_read_u16(interrupt.vector_addr);
     }
 
-    fn interrupt_brk(&mut self){
-
-    }
 
     pub fn execute<F>(&mut self, mut callback: F)
     where F: FnMut(&mut CPU) {
@@ -1586,7 +1584,7 @@ impl CPU {
                 _ => {}//todo!("Unimplemented opcode: {:02X}", opcode),
             }
             let opcode_cycles = opcode_map[&opcode].cycles;
-            self.bus.tick(opcode_cycles);let opcode_object = opcode_map[&opcode];
+            self.bus.tick(opcode_cycles + self.additional_cycles);
         }
     }
 }

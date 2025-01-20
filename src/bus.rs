@@ -1,6 +1,8 @@
 use crate::cpu::*;
 use crate::cartridge::*;
 use crate::ppu::*;
+use crate::render::*;
+use crate::frame::*;
 
 //  _______________ $10000  _______________
 // | PRG-ROM       |       |               |
@@ -29,24 +31,29 @@ use crate::ppu::*;
 // |_ _ _ _ _ _ _ _| $0100 |               |
 // | Zero Page     |       |               |
 // |_______________| $0000 |_______________|
-pub struct Bus {
+pub struct Bus <'call>{
 	cpu_vram: [u8; 2048],
 	prg_rom: Vec<u8>,
     ppu: ppu,
     cycles: usize,
+    gameloop_callback: Box<dyn FnMut(&ppu) + 'call>,
 }
 
-impl Bus {
-	pub fn new(rom: Rom) -> Self{
-        let NesPPU = ppu::new(rom.chr_rom, rom.screen_mirroring);
-        
-		Bus {
-			cpu_vram: [0; 2048],
-			prg_rom: rom.prg_rom,
-            ppu: NesPPU,
+impl <'a>Bus<'a> {
+	pub fn new<'call, F>(rom: Rom, gameloop_callback: F) -> Bus<'call>
+    where
+        F: FnMut(&ppu) + 'call,
+    {
+        let ppu = ppu::new(rom.chr_rom, rom.screen_mirroring);
+
+        Bus {
+            cpu_vram: [0; 2048],
+            prg_rom: rom.prg_rom,
+            ppu: ppu,
             cycles: 0,
-		}
-	}
+            gameloop_callback: Box::from(gameloop_callback),
+        }
+    }
 
 	fn read_prg_rom(&self, mut addr: u16) -> u8 {
 		addr -= 0x8000;
@@ -59,7 +66,12 @@ impl Bus {
 
     pub fn tick(&mut self, ticks: u8){
         self.cycles += ticks as usize;
+        let nmi_before = self.ppu.nmi_interrupt.is_some();
         self.ppu.tick(ticks * 3);
+        let nmi_after = self.ppu.nmi_interrupt.is_some();
+        if(!nmi_before && nmi_after){
+            (self.gameloop_callback)(&self.ppu);
+        }
     }
 
     pub fn poll_nmi_status(&mut self) -> Option<u8>{
@@ -68,12 +80,13 @@ impl Bus {
 }
 
 const RAM: u16 = 0x0000;
-const RAM_MIRRORS_END: u16 = 0b0001_1111_1111_1111; // 0x1FFF
+const RAM_MIRRORS_END: u16 = 0x1FFF; // 0x1FFF
 const PPU_REGISTERS: u16 = 0x2000;
-const PPU_REGISTERS_MIRRORS_END: u16 = 0b0011_1111_1111_1111; // 0x3FFF
+const PPU_REGISTERS_MIRRORS_END: u16 = 0x3FFF; // 0x3FFF
 
-impl Mem for Bus {
+impl Mem for Bus<'_> {
    fn memory_read(&mut self, addr: u16) -> u8 {
+    //println!("{:x}", addr);
        match addr {
         
            RAM ..= RAM_MIRRORS_END => {
@@ -83,6 +96,7 @@ impl Mem for Bus {
 
            0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
             panic!("Attempt to read from write-only PPU address {:x}", addr);
+            0
             }
 
             0x2002 => {
@@ -121,6 +135,10 @@ impl Mem for Bus {
                 self.ppu.write_control_register(data);
            }
 
+           0x2001 => {
+            self.ppu.write_mask_register(data);
+           }
+
            0x2002 => {
             panic!("attempting to write to read only register");
            }
@@ -145,16 +163,33 @@ impl Mem for Bus {
                 self.ppu.write_data(data);
            }
 
+           0x4000..=0x4013 | 0x4015 => {
+            //ignore APU 
+        }
+
+        0x4016 => {
+            // ignore joypad 1;
+        }
+
+        0x4017 => {
+            // ignore joypad 2
+        }
+
            0x2008 ..= PPU_REGISTERS_MIRRORS_END => {
                let _mirror_down_addr = addr & 0b00100000_00000111;
-               todo!("PPU is not supported yet");
+               self.memory_write(_mirror_down_addr, data);
+               //todo!("PPU is not supported yet");
            }
 
            0x4014 => {
-            let hi = (data as u16) << 8;
-                for i in 0..0xFF {
-                    self.ppu.oam_data[i as usize] = self.memory_read(hi | i);
+            let mut buffer: [u8; 256] = [0; 256];
+                let hi: u16 = (data as u16) << 8;
+                for i in 0..256u16 {
+                    buffer[i as usize] = self.memory_read(hi + i);
                 }
+
+                self.ppu.write_oam_dma(&buffer);
+
            }
 
             0x8000..=0xFFFF => {
@@ -175,7 +210,8 @@ mod test {
 
     #[test]
     fn test_mem_read_write_to_ram() {
-        let mut bus = Bus::new(test::test_rom(vec![]));
+        let mut frame = Frame::new();
+        let mut bus = Bus::new(test::test_rom(vec![]), frame);
         bus.memory_write(0x01, 0x55);
         assert_eq!(bus.memory_read(0x01), 0x55);
     }

@@ -111,7 +111,7 @@ impl ppu {
         self.address.increment(self.control_register.vram_addr_increment());
     }
 
-    fn write_oam_dma(&mut self, data: &[u8; 256]) {
+    pub fn write_oam_dma(&mut self, data: &[u8; 256]) {
         for i in data.iter() {
             self.oam_data[self.oam_address as usize] = *i;
             self.oam_address = self.oam_address.wrapping_add(1);
@@ -165,8 +165,14 @@ impl ppu {
                 panic!("writing to mirror address space");
             }
 
-            0x3F00..0x3FFF => {
-                todo!("writing to palette table");
+            0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => {
+                let add_mirror = address - 0x10;
+                self.palette_table[(add_mirror - 0x3f00) as usize]
+            }
+
+            0x3f00..=0x3fff =>
+            {
+                self.palette_table[(address - 0x3f00) as usize]
             }
 
             _ => {
@@ -192,14 +198,21 @@ impl ppu {
                 panic!("writing to mirror address space");
             }
 
-            0x3F00..0x3FFF => {
-                todo!("writing to palette table");
+            0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => {
+                let add_mirror = address - 0x10;
+                self.palette_table[(add_mirror - 0x3f00) as usize] = data;
+            }
+
+            0x3f00..=0x3fff =>
+            {
+                self.palette_table[(address - 0x3f00) as usize] = data;
             }
 
             _ => {
                 panic!("writing to mirror address spaces");
             }
         }
+        self.increment_vram_address();
     }
 }
 
@@ -302,6 +315,13 @@ bitflags!{
             return self.contains(ControlRegister::GENERATE_NMI);
         }
         
+        pub fn background_pattern_addr(&self) -> u16 {
+            if !self.contains(ControlRegister::BACKROUND_PATTERN_ADDR) {
+                0
+            } else {
+                0x1000
+            }
+        }
     
         pub fn update(&mut self, data: u8){
             self.bits = data;
