@@ -104,7 +104,7 @@ impl ppu {
     }
 
     pub fn write_scroll_register(&mut self, data: u8){
-        self.write_scroll_register(data);
+        self.scroll_register.write(data);
     }
 
     fn increment_vram_address(&mut self){
