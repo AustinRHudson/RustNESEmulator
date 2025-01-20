@@ -85,6 +85,34 @@ impl opCode {
     }
 }
 
+#[derive(PartialEq, Eq)]
+    pub enum InterruptType {
+        NMI,
+        BRK,
+    }
+
+    #[derive(PartialEq, Eq)]
+    pub(super) struct Interrupt {
+        pub(super) itype: InterruptType,
+        pub(super) vector_addr: u16,
+        pub(super) b_flag_mask: u8,
+        pub(super) cpu_cycles: u8,
+    }
+
+    pub(super) const NMI: Interrupt = Interrupt {
+        itype: InterruptType::NMI,
+        vector_addr: 0xfffA,
+        b_flag_mask: 0b00100000,
+        cpu_cycles: 2,
+    };
+
+    pub(super) const BRK: Interrupt = Interrupt {
+        itype: InterruptType::BRK,
+        vector_addr: 0xfffe,
+        b_flag_mask: 0b00110000,
+        cpu_cycles: 1,
+    };
+
 lazy_static! {
     pub static ref opcode_list: Vec<opCode> = vec![
         //ADC
@@ -467,7 +495,7 @@ impl CPU {
         self.register_x = 0;
         self.register_y = 0;
         self.stack_pointer = stack_reset;
-        self.status = 0b0010_0100;
+        self.status = 0b0001_1000;
         let pc = self.memory_read_u16(0xFFFC);
         // println!("{:02x}", self.memory_read(0xFFFC));
         // println!("{:02x}", self.memory_read(0xFFFD));
@@ -563,7 +591,7 @@ impl CPU {
             addressing_mode::Absolute_X => {
                 let address = self.memory_read_u16(self.program_counter);
                 let offset_address = address.wrapping_add(self.register_x as u16);
-                if((offset_address & 0x00FF) < (address & 0x00FF)){
+                if((offset_address & 0xFF00) != (address & 0xFF00)){
                     self.additional_cycles += 1;
                 }
                 return offset_address;
@@ -572,7 +600,7 @@ impl CPU {
             addressing_mode::Absolute_Y => {
                 let address = self.memory_read_u16(self.program_counter);
                 let offset_address = address.wrapping_add(self.register_y as u16);
-                if((offset_address & 0x00FF) < (address & 0x00FF)){
+                if((offset_address & 0xFF00) != (address & 0xFF00)){
                     self.additional_cycles += 1;
                 }
                 return offset_address
@@ -611,7 +639,7 @@ impl CPU {
                 let hi = self.memory_read((base as u8).wrapping_add(1) as u16);
                 let deref_base = (hi as u16) << 8 | (lo as u16);
                 let deref = deref_base.wrapping_add(self.register_y as u16);
-                if(((deref & 0x00FF) < (deref_base & 0x00FF))){
+                if(((deref & 0xFF00) != (deref_base & 0xFF00))){
                     self.additional_cycles += 1;
                 }
                 return deref;
@@ -966,11 +994,28 @@ impl CPU {
         self.EOR(mode);
     }
 
+    fn interrupt(&mut self,  interrupt: Interrupt){
+        self.stack_push_u16(self.program_counter);
+        if(interrupt.itype == InterruptType::NMI){
+            self.stack_push((self.status & 0b1110_1111) | 0b0010_0000);
+        } else if(interrupt.itype == InterruptType::BRK){
+            self.stack_push(self.status | 0b0011_0000);
+        }
+        self.status = self.status | 0b0000_0100;
+        self.bus.tick(interrupt.cpu_cycles);
+        self.program_counter = self.memory_read_u16(interrupt.vector_addr);
+    }
 
+    fn interrupt_brk(&mut self){
+
+    }
 
     pub fn execute<F>(&mut self, mut callback: F)
     where F: FnMut(&mut CPU) {
         loop {
+            if let Some(_nmi) = self.bus.poll_nmi_status() {
+                self.interrupt(NMI);
+            }
             callback(self);
             self.additional_cycles = 0;
             //println!("{}", self.status);
@@ -1056,7 +1101,7 @@ impl CPU {
 
                 //BRK
                 0x00 => {
-                    self.status = (self.status | 0b0001_0000);
+                    self.interrupt(BRK);
                     return;
                 }
             
@@ -1357,6 +1402,7 @@ impl CPU {
                     self.update_negative_zero_flags(result);
 
                     self.register_x = result;
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* ARR */
@@ -1382,12 +1428,14 @@ impl CPU {
                     }
 
                     self.update_negative_zero_flags(result);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 // /* unofficial SBC */
                 0xeb => {
                     let opcode_object = opcode_map[&opcode];
                     self.SBC(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* ANC */
@@ -1399,6 +1447,7 @@ impl CPU {
                     } else {
                         self.status = self.status & 0b1111_1110;
                     }
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* ALR */
@@ -1406,6 +1455,7 @@ impl CPU {
                     let opcode_object = opcode_map[&opcode];
                     self.AND(&opcode_object.address_mode);
                     self.LSR(&addressing_mode::Accumulator);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 // //todo: test for everything below
@@ -1415,6 +1465,7 @@ impl CPU {
                     let opcode_object = opcode_map[&opcode];
                     let data = self.ROR(&opcode_object.address_mode);
                     self.ADC(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* ISB */
@@ -1422,6 +1473,7 @@ impl CPU {
                     let opcode_object = opcode_map[&opcode];
                     self.INC(&opcode_object.address_mode);
                     self.SBC(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* LAX */
@@ -1432,6 +1484,7 @@ impl CPU {
                     self.register_a = data;
                     self.update_negative_zero_flags(self.register_a);
                     self.register_x = self.register_a;
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* SAX */
@@ -1440,6 +1493,7 @@ impl CPU {
                     let data = self.register_a & self.register_x;
                     let addr = self.get_operand_address(&opcode_object.address_mode);
                     self.memory_write(addr, data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* LXA */
@@ -1449,6 +1503,7 @@ impl CPU {
                     self.LDA(&opcode_object.address_mode);
                     self.register_x = self.register_a;
                     self.update_negative_zero_flags(self.register_x);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* XAA */
@@ -1457,6 +1512,7 @@ impl CPU {
                     self.register_a = self.register_x;
                     self.update_negative_zero_flags(self.register_a);
                     self.AND(&opcode_object.address_mode);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* LAS */
@@ -1469,51 +1525,62 @@ impl CPU {
                     self.register_x = data;
                     self.stack_pointer = data;
                     self.update_negative_zero_flags(data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* TAS */
                 0x9b => {
+                    let opcode_object = opcode_map[&opcode];
                     let data = self.register_a & self.register_x;
                     self.stack_pointer = data;
                     let mem_address =
                         self.memory_read_u16(self.program_counter) + self.register_y as u16;
 
                     let data = ((mem_address >> 8) as u8 + 1) & self.stack_pointer;
-                    self.memory_write(mem_address, data)
+                    self.memory_write(mem_address, data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* AHX  Indirect Y */
                 0x93 => {
+                    let opcode_object = opcode_map[&opcode];
                     let pos: u8 = self.memory_read(self.program_counter);
                     let mem_address = self.memory_read_u16(pos as u16) + self.register_y as u16;
                     let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
-                    self.memory_write(mem_address, data)
+                    self.memory_write(mem_address, data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* AHX Absolute Y*/
                 0x9f => {
+                    let opcode_object = opcode_map[&opcode];
                     let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
 
                     let data = self.register_a & self.register_x & (mem_address >> 8) as u8;
-                    self.memory_write(mem_address, data)
+                    self.memory_write(mem_address, data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* SHX */
                 0x9e => {
+                    let opcode_object = opcode_map[&opcode];
                     let mem_address = self.memory_read_u16(self.program_counter) + self.register_y as u16;
 
                     // todo if cross page boundry {
                     //     mem_address &= (self.x as u16) << 8;
                     // }
                     let data = self.register_x & ((mem_address >> 8) as u8 + 1);
-                    self.memory_write(mem_address, data)
+                    self.memory_write(mem_address, data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 /* SHY */
                 0x9c => {
+                    let opcode_object = opcode_map[&opcode];
                     let mem_address = self.memory_read_u16(self.program_counter) + self.register_x as u16;
                     let data = self.register_y & ((mem_address >> 8) as u8 + 1);
-                    self.memory_write(mem_address, data)
+                    self.memory_write(mem_address, data);
+                    self.program_counter += ((opcode_object.bytes - 1) as u16);
                 }
 
                 _ => {}//todo!("Unimplemented opcode: {:02X}", opcode),

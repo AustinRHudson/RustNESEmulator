@@ -17,6 +17,7 @@ pub struct ppu {
     pub scroll_register: ScrollRegister,
     scanline: u16,
     cycles: usize,
+    pub nmi_interrupt: Option<u8>,
 }
 
 impl ppu {
@@ -35,7 +36,8 @@ impl ppu {
             oam_address: 0,
             scroll_register: ScrollRegister::new(),
             scanline: 0,
-            cycles: 0
+            cycles: 0,
+            nmi_interrupt: None,
         }
     }
 
@@ -45,14 +47,17 @@ impl ppu {
             self.cycles -= 341;
             self.scanline += 1;
 
-            if(self.scanline == 241){
-                if(self.control_register.generate_nmi()){
-                    self.status_register.set_vblank(true);
+            if self.scanline == 241 {
+                self.status_register.set_vblank(true);
+                //self.status.set_sprite_zero_hit(false);
+                if self.control_register.generate_nmi() {
+                    self.nmi_interrupt = Some(1);
                 }
             }
 
             if(self.scanline >= 262){
                 self.scanline = 0;
+                self.nmi_interrupt = None;
                 self.status_register.clear_vblank();
                 return true;
             }
@@ -66,7 +71,11 @@ impl ppu {
     }
 
     pub fn write_control_register(&mut self, data: u8){
+        let before_nmi_status = self.control_register.generate_nmi();
         self.control_register.update(data);
+        if !before_nmi_status && self.control_register.generate_nmi() && self.status_register.check_vblank() {
+            self.nmi_interrupt = Some(1);
+        }
     }
 
     pub fn write_mask_register(&mut self, data: u8){
@@ -292,6 +301,7 @@ bitflags!{
         pub fn generate_nmi(&mut self) -> bool{
             return self.contains(ControlRegister::GENERATE_NMI);
         }
+        
     
         pub fn update(&mut self, data: u8){
             self.bits = data;
@@ -373,6 +383,10 @@ bitflags!{
 
             pub fn clear_vblank(&mut self){
                 self.set(StatusRegister::VBLANK, false);
+            }
+
+            pub fn check_vblank(&self) -> bool{
+                return self.contains(StatusRegister::VBLANK);
             }
 
             pub fn get(&self) -> u8 {
