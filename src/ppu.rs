@@ -47,8 +47,13 @@ impl ppu {
             self.cycles -= 341;
             self.scanline += 1;
 
+            if self.sprite_0_hit(self.cycles) {
+                self.status_register.set_sprite_zero_hit(true);
+            }
+
             if self.scanline == 241 {
                 self.status_register.set_vblank(true);
+                self.status_register.set_sprite_zero_hit(false);
                 //self.status.set_sprite_zero_hit(false);
                 if self.control_register.generate_nmi() {
                     self.nmi_interrupt = Some(1);
@@ -59,6 +64,7 @@ impl ppu {
                 self.scanline = 0;
                 self.nmi_interrupt = None;
                 self.status_register.clear_vblank();
+                self.status_register.set_sprite_zero_hit(false);
                 return true;
             }
         }
@@ -116,6 +122,12 @@ impl ppu {
             self.oam_data[self.oam_address as usize] = *i;
             self.oam_address = self.oam_address.wrapping_add(1);
         }
+    }
+
+    fn sprite_0_hit(&mut self, cycle: usize) -> bool{
+        let y = self.oam_data[0] as usize;
+        let x = self.oam_data[3] as usize;
+        return (y == self.scanline as usize) && x <= cycle && self.mask_register.show_sprites();
     }
 
     //test function
@@ -330,6 +342,16 @@ bitflags!{
                 0x1000
             }
         }
+
+        pub fn nametable_addr(&self) -> u16 {
+            match self.bits & 0b11 {
+                0 => 0x2000,
+                1 => 0x2400,
+                2 => 0x2800,
+                3 => 0x2c00,
+                _ => panic!("not possible"),
+            }
+        }
     
         pub fn update(&mut self, data: u8){
             self.bits = data;
@@ -362,6 +384,10 @@ bitflags!{
         impl MaskRegister {
             pub fn new() -> Self{
                 MaskRegister::from_bits_truncate(0b00000000)
+            }
+
+            pub fn show_sprites(&mut self) -> bool{
+                return self.contains(MaskRegister::ENABLE_SPRITE_RENDER);
             }
         
             pub fn update(&mut self, data: u8){
@@ -417,15 +443,19 @@ bitflags!{
                 return self.contains(StatusRegister::VBLANK);
             }
 
+            pub fn set_sprite_zero_hit(&mut self, flag: bool){
+                self.set(StatusRegister::SPRITE_0_HIT, flag);
+            }
+
             pub fn get(&self) -> u8 {
                 return self.bits;
             }
         }
 
     pub struct ScrollRegister {
-        X_scroll: u8,
-        Y_scroll: u8,
-        scroll_ptr: bool
+        pub X_scroll: u8,
+        pub Y_scroll: u8,
+        pub scroll_ptr: bool
     }
 
     impl ScrollRegister {

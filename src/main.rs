@@ -68,12 +68,12 @@ fn main() {
     key_map.insert(Keycode::A, joypad::JoypadButtons::BUTTON_A);
     key_map.insert(Keycode::S, joypad::JoypadButtons::BUTTON_B);
 
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/donkeykong.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
     let bus = Bus::new(rom, move |ppu: &NesPPU, joypad: &mut Joypad| {
         render::render(ppu, &mut frame);
         texture.update(None, &frame.data, 256 * 3).unwrap();
-
+        
         canvas.copy(&texture, None, None).unwrap();
 
         canvas.present();
