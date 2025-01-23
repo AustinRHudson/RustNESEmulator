@@ -47,6 +47,13 @@ impl ppu {
             self.cycles -= 341;
             self.scanline += 1;
 
+
+            // println!("1");
+
+            // for i in 0..4{
+            //     println!("{:0b}", self.oam_data[i]);
+            // }
+
             if self.sprite_0_hit(self.cycles) {
                 self.status_register.set_sprite_zero_hit(true);
             }
@@ -127,7 +134,7 @@ impl ppu {
     fn sprite_0_hit(&mut self, cycle: usize) -> bool{
         let y = self.oam_data[0] as usize;
         let x = self.oam_data[3] as usize;
-        return (y == self.scanline as usize) && x <= cycle && self.mask_register.show_sprites();
+        return (y == self.scanline as usize) && cycle <= x && self.mask_register.show_sprites();
     }
 
     //test function

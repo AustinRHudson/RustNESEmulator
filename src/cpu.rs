@@ -665,6 +665,7 @@ impl <'a>CPU<'a> {
         let value = self.memory_read(address);
 
         self.register_a = value;
+        //println!("{:x}", value);
         self.update_negative_zero_flags(self.register_a);
     }
 
@@ -676,6 +677,7 @@ impl <'a>CPU<'a> {
     pub fn AND(&mut self, mode: &addressing_mode) {
         let address = self.get_operand_address(mode);
         let value = self.memory_read(address);
+        //println!("{:x}", value);
         self.register_a = self.register_a & value;
         self.update_negative_zero_flags(self.register_a);
     }
