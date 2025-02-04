@@ -12,6 +12,7 @@ mod render;
 mod frame;
 mod palette;
 mod joypad;
+mod apu;
 use std::collections::HashMap;
 use sdl2::event::Event;
 use sdl2::rect::Rect;
@@ -36,6 +37,7 @@ use crate::tile_viewer::*;
 use crate::render::*;
 use crate::frame::*;
 use crate::joypad::*;
+use crate::apu::*;
 
 fn main() {
     let sdl_context = sdl2::init().unwrap();
@@ -65,10 +67,10 @@ fn main() {
     key_map.insert(Keycode::Left, joypad::JoypadButtons::LEFT);
     key_map.insert(Keycode::Space, joypad::JoypadButtons::SELECT);
     key_map.insert(Keycode::Return, joypad::JoypadButtons::START);
-    key_map.insert(Keycode::A, joypad::JoypadButtons::BUTTON_A);
-    key_map.insert(Keycode::S, joypad::JoypadButtons::BUTTON_B);
+    key_map.insert(Keycode::X, joypad::JoypadButtons::BUTTON_A);
+    key_map.insert(Keycode::Z, joypad::JoypadButtons::BUTTON_B);
 
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/iceclimber.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
     let bus = Bus::new(rom, move |ppu: &NesPPU, joypad: &mut Joypad| {
         render::render(ppu, &mut frame);
@@ -88,7 +90,7 @@ fn main() {
               Event::KeyDown { keycode, .. } => {
                 if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)) {
                     joypad.set_button_pressed_status(*key, true);
-                    println!("{:?}", *key);
+                    //println!("{:?}", *key);
                 }
             }
             Event::KeyUp { keycode, .. } => {

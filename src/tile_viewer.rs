@@ -121,7 +121,7 @@ fn main() {
         .unwrap();
 
     //load the game
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/pacman.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
 
     let right_bank = show_tile_bank(&rom.chr_rom, 1);

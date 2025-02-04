@@ -40,7 +40,6 @@ pub struct Bus <'call>{
     cycles: usize,
     gameloop_callback: Box<dyn FnMut(&ppu, &mut Joypad) + 'call>,
     joypad: Joypad,
-    expansion: [u8; 0x1EF0]
 }
 
 impl <'a>Bus<'a> {
@@ -62,7 +61,6 @@ impl <'a>Bus<'a> {
             cycles: 0,
             gameloop_callback: Box::from(gameloop_callback),
             joypad: Joypad::new(),
-            expansion: [0; 0x1EF0]
         }
     }
 
@@ -134,8 +132,7 @@ impl Mem for Bus<'_> {
             }
 
             0x4020..=0x6000 => {
-                //return self.expansion[]
-                todo!("mirror");
+                todo!("expansion rom");
             }
 
 			0x8000..= 0xFFFF => self.read_prg_rom(addr),
