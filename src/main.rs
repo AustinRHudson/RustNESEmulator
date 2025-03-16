@@ -70,7 +70,7 @@ fn main() {
     key_map.insert(Keycode::X, joypad::JoypadButtons::BUTTON_A);
     key_map.insert(Keycode::Z, joypad::JoypadButtons::BUTTON_B);
 
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/TestRoms/pacman.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
     let bus = Bus::new(rom, move |ppu: &NesPPU, joypad: &mut Joypad| {
         render::render(ppu, &mut frame);
