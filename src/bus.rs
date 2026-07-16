@@ -88,6 +88,12 @@ impl <'a>Bus<'a> {
     }
 }
 
+impl Bus<'static> {
+    pub fn new_test(rom: Rom) -> Self {
+        Self::new(rom, |_, _| {})
+    }
+}
+
 const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF; // 0x1FFF
 const PPU_REGISTERS: u16 = 0x2000;
