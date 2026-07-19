@@ -5,6 +5,7 @@ use crate::ppu::*;
 use crate::render::*;
 use crate::frame::*;
 use crate::joypad::*;
+use crate::apu::*;
 
 //  _______________ $10000  _______________
 // | PRG-ROM       |       |               |
@@ -40,6 +41,7 @@ pub struct Bus <'call>{
     cycles: usize,
     gameloop_callback: Box<dyn FnMut(&ppu, &mut Joypad) + 'call>,
     joypad: Joypad,
+    apu: apu,
 }
 
 impl <'a>Bus<'a> {
@@ -48,6 +50,7 @@ impl <'a>Bus<'a> {
         F: FnMut(&ppu, &mut Joypad) + 'call,
     {
         let ppu = ppu::new(rom.chr_rom, rom.screen_mirroring);
+        let apu = apu::new();
 
         // for i in 0..rom.prg_rom.len(){
         //     println!("{:x}", rom.prg_rom[i]);
@@ -61,6 +64,7 @@ impl <'a>Bus<'a> {
             cycles: 0,
             gameloop_callback: Box::from(gameloop_callback),
             joypad: Joypad::new(),
+            apu: apu,
         }
     }
 
