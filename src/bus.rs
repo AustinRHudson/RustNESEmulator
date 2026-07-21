@@ -45,12 +45,12 @@ pub struct Bus <'call>{
 }
 
 impl <'a>Bus<'a> {
-	pub fn new<'call, F>(rom: Rom, gameloop_callback: F) -> Bus<'call>
+	pub fn new<'call, F>(rom: Rom, sdl_context: sdl2::Sdl, gameloop_callback: F) -> Bus<'call>
     where
         F: FnMut(&ppu, &mut Joypad) + 'call,
     {
         let ppu = ppu::new(rom.chr_rom, rom.screen_mirroring);
-        let apu = apu::new();
+        let apu = apu::new(sdl_context);
 
         // for i in 0..rom.prg_rom.len(){
         //     println!("{:x}", rom.prg_rom[i]);
@@ -81,6 +81,7 @@ impl <'a>Bus<'a> {
         self.cycles += ticks as usize;
         let nmi_before = self.ppu.nmi_interrupt.is_some();
         self.ppu.tick(ticks * 3);
+        self.apu.tick();
         let nmi_after = self.ppu.nmi_interrupt.is_some();
         if(!nmi_before && nmi_after){
             (self.gameloop_callback)(&self.ppu, &mut self.joypad);
@@ -90,13 +91,18 @@ impl <'a>Bus<'a> {
     pub fn poll_nmi_status(&mut self) -> Option<u8>{
         return self.ppu.nmi_interrupt.take();
     }
+
+    pub fn startAPUAudio(&mut self){
+        self.apu.startAudio();
+    }
 }
 
 impl Bus<'static> {
     pub fn new_test(rom: Rom) -> Self {
-        Self::new(rom, |_, _| {})
+        Self::new(rom, sdl2::init().unwrap(), |_, _| {})
     }
 }
+
 
 const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF; // 0x1FFF
@@ -193,8 +199,27 @@ impl Mem for Bus<'_> {
            0x2007 => {
                 self.ppu.write_data(data);
            }
+           
+           0x4000 => {
+                self.apu.pulse1.write_0x4000(data);
+                //eprintln!("1. {:08b}", data);            
+           }
 
-           0x4000..=0x4013 | 0x4015 => {
+           0x4001 => {
+                //eprintln!("2. {:08b}", data);
+           }
+
+           0x4002 => {
+                self.apu.pulse1.write_0x4002(data);
+                //eprintln!("3. {:08b}", data);
+           }
+
+           0x4003 => {
+                self.apu.pulse1.write_0x4003(data);
+                //eprintln!("4. {:08b}", data);
+           }
+
+           0x4004..=0x4013 | 0x4015 => {
             //ignore APU 
         }
 

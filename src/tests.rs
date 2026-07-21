@@ -9,6 +9,7 @@ mod tests {
     use crate::opcodes::*;
     use crate::bus::*;
     use crate::cartridge::*;
+
 	#[test]
     fn test_LDA() {
         let mut bus = Bus::new_test(test_rom(vec![LDA_IMM, 0x05, 0x00]));

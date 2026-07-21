@@ -70,9 +70,9 @@ fn main() {
     key_map.insert(Keycode::X, joypad::JoypadButtons::BUTTON_A);
     key_map.insert(Keycode::Z, joypad::JoypadButtons::BUTTON_B);
 
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/pacman.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
-    let bus = Bus::new(rom, move |ppu: &NesPPU, joypad: &mut Joypad| {
+    let mut bus = Bus::new(rom, sdl_context, move |ppu: &NesPPU, joypad: &mut Joypad| {
         render::render(ppu, &mut frame);
         texture.update(None, &frame.data, 256 * 3).unwrap();
         
@@ -103,6 +103,7 @@ fn main() {
             }
          }
     });
+    bus.startAPUAudio();
     let mut cpu = CPU::new(bus);
     cpu.reset();
     //cpu.program_counter = 0xc000;
