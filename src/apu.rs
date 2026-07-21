@@ -1,4 +1,5 @@
-
+use sdl2::audio::{AudioCallback, AudioSpecDesired, AudioQueue};
+use std::time::Duration;
 pub struct Pulse {
     pub duty: u8,
     pub envelope_loop: bool,
@@ -100,54 +101,53 @@ mod testingTime {
     #[test]
     
     fn main() {
-        use sdl2::audio::{AudioCallback, AudioSpecDesired};
+        use sdl2::{audio::{AudioQueue, AudioSpecDesired}, sys::{SDL_Delay, SDL_PauseAudio, SDL_PauseAudioDevice, SDL_QueueAudio}};
         use std::time::Duration;
-        
-        struct Square {
-            phase_inc: f32,
-            phase: f32,
-            volume: f32
-        }
-        
-        impl AudioCallback for Square {
-            type Channel = f32;
-        
-            fn callback(&mut self, out: &mut [f32]) {
-                // Generate a square wave
-                for x in out.iter_mut() {
-                    *x = if self.phase <= 0.5 {
-                        self.volume
-                    } else {
-                        -self.volume
-                    };
-                    self.phase = (self.phase + self.phase_inc) % 1.0;
-                    println!("{}", self.phase);
-                }
-            }
-        }
-        
+        use std::thread;
+
         let sdl_context = sdl2::init().unwrap();
         let audio_subsystem = sdl_context.audio().unwrap();
-        
+
         let desired_spec = AudioSpecDesired {
-            freq: Some(6200),
-            channels: Some(1),  // mono
-            samples: None       // default sample size
+        freq: Some(44100),
+        channels: Some(1),
+        samples: Some(1024)
         };
-        
-        let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
-            // initialize the audio callback
-            Square {
-                phase_inc: 620.0 / spec.freq as f32,
-                phase: 0.1,
-                volume: 0.02
+
+        let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap();
+
+        let sampleRate: i32 = desired_spec.freq.unwrap();
+
+        let mut data: Vec<f32> = Vec::with_capacity(1024);
+
+        eprintln!("Sample Rate: {}", sampleRate);
+
+        let duration: f32 = 20.0; // Duration in seconds
+
+        let totalSamples = desired_spec.samples.unwrap() as f32 * duration;
+
+        let mut count = 0;
+
+        while(count < 5){
+            for i in 0..= totalSamples as usize {
+                let sample = (i as f32 * 440.0 * 2.0 * std::f32::consts::PI / sampleRate as f32).sin();
+                data.push(sample);
             }
-        }).unwrap();
-        
-        // Start playback
+
+        device.queue(&data);
+
         device.resume();
+
+        thread::sleep(Duration::from_millis(2000));
+
+        count += 1;
+
+        data.clear();
+        }
         
-        // Play for 2 seconds
-        std::thread::sleep(Duration::from_millis(2000));
+
+        thread::sleep(Duration::from_millis(2000));
+
+        
     }
 }
