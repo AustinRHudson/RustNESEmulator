@@ -213,7 +213,7 @@ impl Mem for Bus<'_> {
            }
 
            0x4001 => {
-                //eprintln!("2. {:08b}", data);
+                self.apu.pulse1.write_0x4001(data);
            }
 
            0x4002 => {
@@ -226,7 +226,25 @@ impl Mem for Bus<'_> {
                 //eprintln!("4. {:08b}", data);
            }
 
-           0x4004..=0x4013 | 0x4015 => {
+            0x4004 => {
+                self.apu.pulse2.write_0x4000(data);
+            }
+
+            0x4005 => {
+                self.apu.pulse2.write_0x4001(data);
+           }
+
+           0x4006 => {
+                self.apu.pulse2.write_0x4002(data);
+                //eprintln!("3. {:08b}", data);
+           }
+
+           0x4007 => {
+                self.apu.pulse2.write_0x4003(data);
+                //eprintln!("4. {:08b}", data);
+           }
+
+           0x4008..=0x4013 | 0x4015 => {
             //ignore APU 
         }
 
