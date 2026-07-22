@@ -6,9 +6,9 @@ pub struct Pulse {
     pub duty: u8,
     pub envelope_loop: bool,
     pub constant_volume: bool,
-    pub envelope_volume: u8,
+    pub envelope_volume: u8, //acts as the volume if constant_volume is set to true, otherwise it acts as the period for the envelope generator when constant_volume is set to false
     pub sweep_enabled: bool,
-    pub divider_period: u8,
+    pub divider_period: u8, 
     pub negate_flag: bool,
     pub shift_count: u8,
     pub timer_low: u8,
@@ -50,26 +50,28 @@ impl Pulse {
     pub fn tick(&mut self) {
         // Implement the pulse channel tick logic here
         // This function should be called every CPU cycle to update the pulse channel state
+        //eprint!("Current Volume {}\n", self.current_volume);
+        //eprint!("Current Timer: {}, Combined Timer: {}, Duty Index: {}, Current Volume: {}, Current Length Counter: {}\n", self.current_timer, self.combined_timer, self.duty_index, self.current_volume, self.current_length_counter);
         if(self.current_timer == 0){
             self.current_timer = self.combined_timer;
             self.duty_index = (self.duty_index + 1) % 8;
-            if(!self.constant_volume){
-                if(self.current_volume > 0){
-                    self.current_volume -= 1;
-                }else{
-                    if(self.envelope_loop){
-                        self.current_volume = self.envelope_volume;
-                    }else{
-                        self.current_volume = 0;
-                    }
-                }
-            }
         } else {
             self.current_timer -= 1;
-            if(!self.constant_volume){
+        }
+
+        if(!self.constant_volume){
+            if(self.divider_period == 0){
+                self.divider_period = self.envelope_volume;
                 if(self.current_volume > 0){
                     self.current_volume -= 1;
+                } else {
+                    if(self.envelope_loop){
+                        self.current_volume = 15;
+                    }
                 }
+            } else {
+                self.divider_period -= 1;
+
             }
         }
 
@@ -131,7 +133,6 @@ impl Pulse {
             31 => 30,
             _ => panic!("Invalid length counter value"),
         };
-        self.length_counter_value = value;
     }
 
     pub fn get_sample(&self) -> f32 {
@@ -150,11 +151,16 @@ impl Pulse {
     }
 
     pub fn write_0x4000(&mut self, data: u8) {
+        eprint!("writing to 0x4000: {:08b}\n", data);
         self.duty = (data >> 6) & 0b11;
         self.set_duty(self.duty);
         self.envelope_loop = (data & 0b00100000) != 0;
         self.constant_volume = (data & 0b00010000) != 0;
         self.envelope_volume = data & 0b00001111;
+        self.divider_period = data & 0b00001111;
+        if(self.constant_volume){
+            self.current_volume = self.envelope_volume;
+        }
     }
 
     pub fn write_0x4002(&mut self, data: u8) {
@@ -164,11 +170,18 @@ impl Pulse {
     }
 
     pub fn write_0x4003(&mut self, data: u8) {
+        eprint!("writing to 0x4003: {:08b}\n", data);
         self.timer_high = data & 0b00000111;
         self.combined_timer = (self.timer_high as u16) << 8 | (self.timer_low as u16);
         self.set_length_counter((data >> 3) & 0b00011111);
         self.current_timer = self.combined_timer;
         self.duty_index = 0;
+        if(self.constant_volume){
+            self.current_volume = self.envelope_volume;
+        }else{
+            self.current_volume = 15;
+        }
+        eprint!("Current Volume: {}\n", self.current_volume);
     }
 }
 
@@ -228,7 +241,7 @@ pub struct apu {
 }
 
 impl apu {
-    pub fn new(sdl_context: sdl2::Sdl) -> Self {
+    pub fn new(device: AudioQueue<f32>) -> Self {
         apu {
             pulse1: Pulse::new(),
             pulse2: Pulse::new(),
@@ -236,21 +249,10 @@ impl apu {
             noise: Noise::new(),
             //dmc: DMC::new(),
             cpu_cycles: 0,
-            device: sdl_context.audio().unwrap().open_queue::<f32, _>(None, &AudioSpecDesired {
-                freq: Some(44100),
-                channels: Some(1),
-                samples: Some(512)
-            }).unwrap(),
+            device: device,
             sample_data: Vec::with_capacity(512),
             sample_index: 0,
         }
-    }
-
-    pub fn startAudio(&mut self) {
-        // Implement the audio output logic here
-        // This function should be called to start generating audio samples
-        eprint!("Starting APU audio output...");
-        self.device.resume();
     }
 
     pub fn tick(&mut self) {
@@ -259,21 +261,28 @@ impl apu {
         self.cpu_cycles += 1;
         if(self.cpu_cycles % 2 == 0){
             // Update pulse channels
-            self.cpu_cycles = 0;
             self.pulse1.tick();
+            // self.pulse2.tick();
+        }
+        if(self.cpu_cycles % 40 == 0){
+            // Update triangle channel
             self.sample_data.push(self.pulse1.get_sample());
             self.sample_index += 1;
             if(self.sample_index >= 512){
-                self.device.queue(&self.sample_data);
+                let samples_to_queue: Vec<f32> = self.sample_data.drain(..512).collect();
+                self.device.queue(&samples_to_queue);
                 self.sample_data.clear();
                 self.sample_index = 0;
+                eprint!("Queued Audio Samples: {}\n", self.device.size() / std::mem::size_of::<f32>() as u32);
             }
-            // self.pulse2.tick();
+
         }
     }
 }
 
 mod testingTime {
+    use sdl2::sys::SDL_GetQueuedAudioSize;
+
     #[cfg(test)]
 
     #[test]
@@ -289,7 +298,7 @@ mod testingTime {
         let desired_spec = AudioSpecDesired {
         freq: Some(44100),
         channels: Some(1),
-        samples: Some(1024)
+        samples: Some(512)
         };
 
         let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap();
@@ -336,15 +345,26 @@ mod testingTime {
         use std::thread;
         use crate::apu::*;
 
-        let mut apu = apu::new(sdl2::init().unwrap());
-        apu.pulse1.set_duty(3);
-        apu.pulse1.envelope_loop = false;
+        let sdl_context = sdl2::init().unwrap();
+        let audio_subsystem = sdl_context.audio().unwrap();
+
+        let desired_spec = AudioSpecDesired {
+        freq: Some(44100),
+        channels: Some(1),
+        samples: Some(512)
+        };
+
+        let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap();
+
+        device.resume();
+
+        let mut apu = apu::new(device);
+        apu.pulse1.set_duty(0);
+        apu.pulse1.envelope_loop = true;
         apu.pulse1.constant_volume = false;
         apu.pulse1.envelope_volume = 15;
         apu.pulse1.current_timer = 100;
-        apu.pulse1.current_length_counter = 10;
-
-        apu.startAudio();
+        apu.pulse1.current_length_counter = 100;
 
         for i in 0..44100{
             apu.tick();
@@ -352,6 +372,52 @@ mod testingTime {
                 eprint!("{}", apu.pulse1.current_volume);
                 //eprint!("Current Length Counter: {}", apu.pulse1.current_length_counter);
                 eprint!(" ");
+            }
+            thread::sleep(Duration::from_micros(22)); // Simulate CPU cycles (approx. 1/44100 seconds)
+        }
+
+    }
+
+     #[test]
+    fn apu_pulse1_test_registers() {
+        use sdl2::{audio::{AudioQueue, AudioSpecDesired}, sys::{SDL_Delay, SDL_PauseAudio, SDL_PauseAudioDevice, SDL_QueueAudio}};
+        use std::time::Duration;
+        use std::thread;
+        use crate::apu::*;
+
+        let sdl_context = sdl2::init().unwrap();
+        let audio_subsystem = sdl_context.audio().unwrap();
+
+        let desired_spec = AudioSpecDesired {
+        freq: Some(44100),
+        channels: Some(1),
+        samples: Some(512)
+        };
+
+        let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap();
+
+        device.resume();
+
+        let mut apu = apu::new(device);
+
+        apu.pulse1.write_0x4000(0b0001_1111);
+        apu.pulse1.write_0x4002(100);
+        apu.pulse1.write_0x4003(0b0000_0000);
+
+        let mut queued_bytes = apu.device.size();
+
+// Convert bytes to samples (assuming 16-bit mono audio)
+        let mut queued_samples = queued_bytes / std::mem::size_of::<f32>() as u32;
+
+        for i in 0..44100{
+            apu.tick();
+            if(i % 2 == 0){
+                queued_bytes = apu.device.size();
+                queued_samples = queued_bytes / std::mem::size_of::<f32>() as u32;
+                //eprint!("{}", apu.pulse1.current_volume);
+                //eprint!("Current Length Counter: {}", apu.pulse1.current_length_counter);
+                //eprint!(" ");
+                eprint!("{}", queued_samples);
             }
             thread::sleep(Duration::from_micros(22)); // Simulate CPU cycles (approx. 1/44100 seconds)
         }

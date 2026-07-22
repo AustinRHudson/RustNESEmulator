@@ -23,6 +23,7 @@ use sdl2::EventPump;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::audio::{AudioCallback, AudioSpecDesired, AudioQueue};
 use std::time::Duration;
 use std::fs::File;
 use std::io::Write;
@@ -70,15 +71,28 @@ fn main() {
     key_map.insert(Keycode::X, joypad::JoypadButtons::BUTTON_A);
     key_map.insert(Keycode::Z, joypad::JoypadButtons::BUTTON_B);
 
+    let audio_subsystem = sdl_context.audio().unwrap();
+
+    let desired_spec = AudioSpecDesired {
+    freq: Some(44100),
+    channels: Some(1),
+    samples: Some(512)
+    };
+
+    let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap()    ;
+
+    device.resume();
+    
     let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
-    let mut bus = Bus::new(rom, sdl_context, move |ppu: &NesPPU, joypad: &mut Joypad| {
+    let mut bus = Bus::new(rom, device, move |ppu: &NesPPU, joypad: &mut Joypad| {
         render::render(ppu, &mut frame);
         texture.update(None, &frame.data, 256 * 3).unwrap();
         
         canvas.copy(&texture, None, None).unwrap();
 
         canvas.present();
+
         for event in event_pump.poll_iter() {
             match event {
               Event::Quit { .. }
@@ -103,7 +117,6 @@ fn main() {
             }
          }
     });
-    bus.startAPUAudio();
     let mut cpu = CPU::new(bus);
     cpu.reset();
     //cpu.program_counter = 0xc000;

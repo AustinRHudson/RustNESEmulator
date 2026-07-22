@@ -1,3 +1,5 @@
+use sdl2::audio::AudioQueue;
+
 use crate::cpu::*;
 use crate::cartridge::*;
 use crate::joypad;
@@ -45,12 +47,12 @@ pub struct Bus <'call>{
 }
 
 impl <'a>Bus<'a> {
-	pub fn new<'call, F>(rom: Rom, sdl_context: sdl2::Sdl, gameloop_callback: F) -> Bus<'call>
+	pub fn new<'call, F>(rom: Rom, device: AudioQueue<f32>, gameloop_callback: F) -> Bus<'call>
     where
         F: FnMut(&ppu, &mut Joypad) + 'call,
     {
         let ppu = ppu::new(rom.chr_rom, rom.screen_mirroring);
-        let apu = apu::new(sdl_context);
+        let apu = apu::new(device);
 
         // for i in 0..rom.prg_rom.len(){
         //     println!("{:x}", rom.prg_rom[i]);
@@ -92,14 +94,19 @@ impl <'a>Bus<'a> {
         return self.ppu.nmi_interrupt.take();
     }
 
-    pub fn startAPUAudio(&mut self){
-        self.apu.startAudio();
-    }
 }
 
 impl Bus<'static> {
     pub fn new_test(rom: Rom) -> Self {
-        Self::new(rom, sdl2::init().unwrap(), |_, _| {})
+        let sdl_context = sdl2::init().unwrap();
+        let audio_subsystem = sdl_context.audio().unwrap();
+        let desired_spec = sdl2::audio::AudioSpecDesired {
+            freq: Some(44100),
+            channels: Some(1),
+            samples: Some(512),
+        };
+        let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap();
+        Self::new(rom, device, |_, _| {})
     }
 }
 
