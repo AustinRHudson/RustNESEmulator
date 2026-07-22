@@ -458,11 +458,11 @@ impl apu {
 
         self.triangle.tick();
 
-        self.sample_timer += 100_100.0 / 1_789_773.0;
+        //self.sample_timer += 100_100.0 / 1_789_773.0;
 
-        if (self.cpu_cycles % 41 == 0){
+        if (self.cpu_cycles % 20 == 0){
             // Update triangle channel
-            self.sample_timer = 0.0;
+            //self.sample_timer = 0.0;
             let mut volume: f32 = 0.0;
             if(self.status_register & 0b00000001 > 0){
                 volume += self.pulse1.get_sample();
@@ -488,9 +488,9 @@ impl apu {
             }
             self.sample_data.push(volume + tnd);
             self.sample_index += 1;
-            if(self.sample_index >= 512){
-                let samples_to_queue: Vec<f32> = self.sample_data.drain(..512).collect();
-                self.device.queue(&samples_to_queue);
+            if(self.sample_index >= 1024){
+                //let samples_to_queue: Vec<f32> = self.sample_data.drain(..1024).collect();
+                self.device.queue(&self.sample_data);
                 self.sample_data.clear();
                 self.sample_index = 0;
                 //eprint!("Queued Audio Samples: {}\n", self.device.size() / std::mem::size_of::<f32>() as u32);

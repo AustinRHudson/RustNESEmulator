@@ -76,7 +76,7 @@ fn main() {
     let desired_spec = AudioSpecDesired {
         freq: Some(44100),
         channels: Some(1),
-        samples: Some(512)
+        samples: Some(1024)
     };
 
     let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap()    ;
