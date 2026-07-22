@@ -399,8 +399,16 @@ pub struct Noise {
     pub constant_volume: bool,
     pub envelope_volume: u8,
     pub noise_mode: bool,
-    pub noise_period: u8,
+    pub envelope_period: u8,
     pub length_counter: u8,
+    pub current_length_counter:u8,
+    pub shift_register: u16,
+    pub length_counter_value: u8,
+    pub shift_timer: u16,
+    pub current_shift_timer: u16,
+    pub current_volume: u8,
+    pub envelope_start: bool,
+    pub envelope_divider: u8
 }
 
 impl Noise {
@@ -410,9 +418,159 @@ impl Noise {
             constant_volume: false,
             envelope_volume: 0,
             noise_mode: false,
-            noise_period: 0,
+            envelope_period: 0,
             length_counter: 0,
+            current_length_counter: 0,
+            shift_register: 1,
+            length_counter_value: 0,
+            shift_timer: 0,
+            current_shift_timer: 0,
+            current_volume: 0,
+            envelope_start: false,
+            envelope_divider: 0,
         }
+    }
+
+    pub fn clock_shift_register(&mut self){
+        self.current_shift_timer += 1;
+        if(self.current_shift_timer >= self.shift_timer){
+            self.current_shift_timer = 0;
+            let mut feedback: u16;
+            if(self.noise_mode){
+                feedback = (self.shift_register & 0b0000_0000_0100_0000)^(self.shift_register & 0b0000_0000_0000_0001);
+            }else{
+                feedback = (self.shift_register & 0b0000_0000_0000_0010)^(self.shift_register & 0b0000_0000_0000_0001);
+            }
+            self.shift_register >>= 1;
+            if(feedback > 0){
+                self.shift_register = self.shift_register | 0b0100_0000_0000_0000;
+            }else{
+                self.shift_register = self.shift_register & 0b1011_1111_1111_1111;
+            }
+        }
+    }
+
+    pub fn clock_length_counter(&mut self) {
+        if self.current_length_counter > 0 && !self.envelope_loop
+        {
+            self.current_length_counter -= 1;
+        }
+    }
+
+    pub fn clock_envelope(&mut self) {
+        if self.envelope_start {
+            self.envelope_start = false;
+            self.current_volume = 15;
+            self.envelope_divider = self.envelope_period;
+            return;
+        }
+
+        if self.envelope_divider == 0 {
+            self.envelope_divider = self.envelope_period;
+
+            if self.current_volume > 0 {
+                self.current_volume -= 1;
+            } else if self.envelope_loop {
+                self.current_volume = 15;
+            }
+        } else {
+            self.envelope_divider -= 1;
+        }
+    }
+
+    pub fn get_sample(&mut self) -> f32{
+        if(self.current_length_counter == 0 || self.shift_register & 0b0000_0000_0000_0001 == 1){
+            return 0.0
+        }
+
+        if(self.constant_volume){
+            return self.envelope_volume as f32;
+        }
+
+        return self.current_volume as f32;
+    }
+
+    pub fn write_0x400C(&mut self, data: u8){
+        self.envelope_loop = data & 0b0010_0000 != 0;
+        self.constant_volume = data & 0b0001_0000 != 0;
+        self.envelope_volume = data & 0b0000_1111;
+        if(self.constant_volume){
+            self.current_volume = self.envelope_volume;
+        }
+    }
+
+    pub fn write_0x400E(&mut self, data: u8){
+        self.noise_mode = data & 0b1000_0000 != 0;
+
+        let period = data & 0b0000_1111;
+
+        self.set_shift_timer(period);
+    }
+
+    pub fn write_0x400F(&mut self, data: u8){
+        self.set_length_counter(data);
+        self.envelope_start = true;
+    }
+
+    pub fn set_length_counter(&mut self, value: u8) {
+        self.length_counter_value = match value {
+            0 => 10,
+            1 => 254,
+            2 => 20,
+            3 => 2,
+            4 => 40,
+            5 => 4,
+            6 => 80,
+            7 => 6,
+            8 => 160,
+            9 => 8,
+            10 => 60,
+            11 => 10,
+            12 => 14,
+            13 => 12,
+            14 => 26,
+            15 => 14,
+            16 => 12,
+            17 => 16,
+            18 => 24,
+            19 => 18,
+            20 => 48,
+            21 => 20,
+            22 => 96,
+            23 => 22,
+            24 => 192,
+            25 => 24,
+            26 => 72,
+            27 => 26,
+            28 => 16,
+            29 => 28,
+            30 => 32,
+            31 => 30,
+            _ => panic!("Invalid length counter value"),
+        };
+        self.current_length_counter = self.length_counter_value;
+    }
+
+    pub fn set_shift_timer(&mut self, data:u8){
+        self.shift_timer = match data {
+        0  => 4,
+        1  => 8,
+        2  => 16,
+        3  => 32,
+        4  => 64,
+        5  => 96,
+        6  => 128,
+        7  => 160,
+        8  => 202,
+        9  => 254,
+        10 => 380,
+        11 => 508,
+        12 => 762,
+        13 => 1016,
+        14 => 2034,
+        15 => 4068,
+        _ => unreachable!(),
+    };
     }
 }
 pub struct apu {
@@ -454,6 +612,7 @@ impl apu {
             // Update pulse channels
             self.pulse1.tick();
             self.pulse2.tick();
+            self.noise.clock_shift_register();
         }
 
         self.triangle.tick();
@@ -474,18 +633,23 @@ impl apu {
                 volume = 95.88 / ((8128.0 / volume) + 100.0);
             }
             let mut triangle_volume: f32;
-            if(self.status_register & 0b00000100 > 0){
+            if(self.status_register & 0b0000_0100 > 0){
                triangle_volume = self.triangle.get_sample();
             }else{
                 triangle_volume = 0.0;
             }
-            let mut tnd: f32;
-            if(triangle_volume > 0.0){
-                tnd = triangle_volume / 8227.0;
-                tnd = 159.79 / ((1.0 / tnd) + 100.0);
+            let mut noise: f32;
+            if(self.status_register & 0b0000_1000 > 0){
+                noise = self.noise.get_sample();
             }else{
-                tnd = 0.0;
+                noise = 0.0;
             }
+            let mut tnd: f32;
+            tnd = triangle_volume / 8227.0 + noise/12241.0;
+            if(tnd > 0.0){
+                tnd = 159.79 / ((1.0 / tnd) + 100.0);
+            }
+            
             self.sample_data.push(volume + tnd);
             self.sample_index += 1;
             if(self.sample_index >= 1024){
@@ -503,6 +667,7 @@ impl apu {
             self.pulse1.clock_envelope();
             self.pulse2.clock_envelope();
             self.triangle.clock_linear_counter();
+            self.noise.clock_envelope();
         }
 
         if(self.cpu_cycles % 7457 == 0){
@@ -513,6 +678,7 @@ impl apu {
             self.pulse2.clock_length_counter();
             self.pulse2.clock_sweep();
             self.triangle.clock_length_counter();
+            self.noise.clock_length_counter();
             //eprint!("Current cycles: {}\n", self.cpu_cycles);
         }
     }
