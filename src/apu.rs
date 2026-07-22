@@ -21,6 +21,7 @@ pub struct Pulse {
     pub current_timer: u16,
     pub current_volume: u8,
     pub current_length_counter: u8,
+    pub sweep_divider_period: u8,
 }
 
 impl Pulse {
@@ -44,6 +45,7 @@ impl Pulse {
             current_timer: 0,
             current_volume: 0,
             current_length_counter: 0,
+            sweep_divider_period: 0,
         }
     }
 
@@ -59,6 +61,19 @@ impl Pulse {
             self.current_timer -= 1;
         }
 
+    }
+
+    pub fn clock_length_counter(&mut self) {
+        if(self.current_length_counter > 0 && !self.envelope_loop){
+            self.current_length_counter -= 1;
+        }else {
+            if(!self.envelope_loop){
+                self.current_length_counter = self.length_counter_value;
+            }
+        }
+    }
+
+    pub fn clock_envelope(&mut self) {
         if(!self.constant_volume){
             if(self.divider_period == 0){
                 self.divider_period = self.envelope_volume;
@@ -74,15 +89,6 @@ impl Pulse {
 
             }
         }
-
-        if(self.current_length_counter > 0 && !self.envelope_loop){
-            self.current_length_counter -= 1;
-        }else {
-            if(!self.envelope_loop){
-                self.current_length_counter = self.length_counter_value;
-            }
-        }
-
     }
 
     pub fn set_duty(&mut self, duty: u8) {
@@ -264,6 +270,7 @@ impl apu {
             self.pulse1.tick();
             // self.pulse2.tick();
         }
+
         if(self.cpu_cycles % 40 == 0){
             // Update triangle channel
             self.sample_data.push(self.pulse1.get_sample());
@@ -273,9 +280,21 @@ impl apu {
                 self.device.queue(&samples_to_queue);
                 self.sample_data.clear();
                 self.sample_index = 0;
-                eprint!("Queued Audio Samples: {}\n", self.device.size() / std::mem::size_of::<f32>() as u32);
+                //eprint!("Queued Audio Samples: {}\n", self.device.size() / std::mem::size_of::<f32>() as u32);
             }
+        }
 
+        if(self.cpu_cycles % 3729 == 0){
+            //Quarter frame tick
+            //Update envelope and linear counter
+            self.pulse1.clock_envelope();
+        }
+
+        if(self.cpu_cycles % 7457 == 0){
+            //Half frame tick
+            //Update length counter and sweep unit
+            self.pulse1.clock_length_counter();
+            eprint!("Current cycles: {}\n", self.cpu_cycles);
         }
     }
 }
