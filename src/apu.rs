@@ -1,4 +1,4 @@
-use sdl2::{audio::{AudioQueue, AudioSpecDesired}, sys::{SDL_Delay, SDL_PauseAudio, SDL_PauseAudioDevice, SDL_QueueAudio}};
+use sdl2::{audio::{AudioQueue, AudioSpecDesired}, sys::{False, SDL_Delay, SDL_PauseAudio, SDL_PauseAudioDevice, SDL_QueueAudio}};
 use std::{time::Duration};
 use std::thread;
 
@@ -22,10 +22,13 @@ pub struct Pulse {
     pub current_volume: u8,
     pub current_length_counter: u8,
     pub sweep_divider_period: u8,
+    pub pulse_number: u8,
+    pub current_sweep_divider_period: u8,
+    pub sweep_muted: bool,
 }
 
 impl Pulse {
-    pub fn new() -> Self {
+    pub fn new(num: u8) -> Self {
         Pulse {
             duty: 0,
             envelope_loop: false,
@@ -46,6 +49,9 @@ impl Pulse {
             current_volume: 0,
             current_length_counter: 0,
             sweep_divider_period: 0,
+            pulse_number: num,
+            current_sweep_divider_period: 0,
+            sweep_muted: false,
         }
     }
 
@@ -152,12 +158,57 @@ impl Pulse {
             return 0.0;
         }
 
+        if(self.sweep_muted){
+            return 0.0;
+        }
+
         //eprint!("{}", self.current_volume as f32 / 15.0);
-        return self.current_volume as f32 / 15.0 // Normalize volume to [0.0, 1.0]
+        return self.current_volume as f32 // Normalize volume to [0.0, 1.0]
+    }
+
+    pub fn clock_sweep(&mut self) {
+        // Implement the sweep unit logic here
+        // This function should be called every half frame to update the sweep unit state
+        if(self.sweep_enabled && self.shift_count > 0){
+            let change_amount = self.combined_timer >> self.shift_count;
+            if(self.current_sweep_divider_period == 0){
+                self.current_sweep_divider_period = self.sweep_divider_period;
+                if(self.negate_flag){
+                        if(self.pulse_number == 1){
+                            let target = self.combined_timer.wrapping_sub(change_amount).wrapping_sub(1);
+                            if(target > 0x7FF){
+                                self.sweep_muted = true;
+                            }else{
+                                self.sweep_muted = false;
+                                self.combined_timer = target;
+                            }
+                        }else{
+                            let target = self.combined_timer.wrapping_sub(change_amount);
+                            if(target > 0x7FF){
+                                self.sweep_muted = true;
+                            }else{
+                                self.sweep_muted = false;
+                                self.combined_timer = target;
+                            }
+                        }
+                } else {
+                    let target = change_amount + self.combined_timer;
+                    if(target > 0x7FF){
+                        self.sweep_muted = true;
+                    }else{
+                        self.sweep_muted = false;
+                        self.combined_timer += change_amount;
+                    }
+                }
+            } else {
+                self.current_sweep_divider_period -= 1;
+
+            }
+        }
     }
 
     pub fn write_0x4000(&mut self, data: u8) {
-        eprint!("writing to 0x4000: {:08b}\n", data);
+        //eprint!("writing to 0x4000: {:08b}\n", data);
         self.duty = (data >> 6) & 0b11;
         self.set_duty(self.duty);
         self.envelope_loop = (data & 0b00100000) != 0;
@@ -169,6 +220,15 @@ impl Pulse {
         }
     }
 
+    pub fn write_0x4001(&mut self, data: u8) {
+        //eprint!("writing to 0x4001: {:08b}\n", data);
+        self.sweep_enabled = (data & 0b10000000) != 0;
+        self.sweep_divider_period = (data >> 4) & 0b00000111;
+        self.negate_flag = (data & 0b00001000) != 0;
+        self.shift_count = data & 0b00000111;
+        self.current_sweep_divider_period = (data >> 4) & 0b00000111;
+    }
+
     pub fn write_0x4002(&mut self, data: u8) {
         self.timer_low = data;
         self.combined_timer = (self.timer_high as u16) << 8 | (self.timer_low as u16);
@@ -176,7 +236,7 @@ impl Pulse {
     }
 
     pub fn write_0x4003(&mut self, data: u8) {
-        eprint!("writing to 0x4003: {:08b}\n", data);
+        //eprint!("writing to 0x4003: {:08b}\n", data);
         self.timer_high = data & 0b00000111;
         self.combined_timer = (self.timer_high as u16) << 8 | (self.timer_low as u16);
         self.set_length_counter((data >> 3) & 0b00011111);
@@ -187,7 +247,7 @@ impl Pulse {
         }else{
             self.current_volume = 15;
         }
-        eprint!("Current Volume: {}\n", self.current_volume);
+        //eprint!("Current Volume: {}\n", self.current_volume);
     }
 }
 
@@ -249,8 +309,8 @@ pub struct apu {
 impl apu {
     pub fn new(device: AudioQueue<f32>) -> Self {
         apu {
-            pulse1: Pulse::new(),
-            pulse2: Pulse::new(),
+            pulse1: Pulse::new(1),
+            pulse2: Pulse::new(2),
             triangle: Triangle::new(),
             noise: Noise::new(),
             //dmc: DMC::new(),
@@ -268,12 +328,16 @@ impl apu {
         if(self.cpu_cycles % 2 == 0){
             // Update pulse channels
             self.pulse1.tick();
-            // self.pulse2.tick();
+            self.pulse2.tick();
         }
 
         if(self.cpu_cycles % 40 == 0){
             // Update triangle channel
-            self.sample_data.push(self.pulse1.get_sample());
+            let mut volume: f32 = 0.0;
+            volume += self.pulse1.get_sample();
+            volume += self.pulse2.get_sample();
+            volume = 95.88 / ((8128.0 / volume) + 100.0);
+            self.sample_data.push(volume);
             self.sample_index += 1;
             if(self.sample_index >= 512){
                 let samples_to_queue: Vec<f32> = self.sample_data.drain(..512).collect();
@@ -294,7 +358,8 @@ impl apu {
             //Half frame tick
             //Update length counter and sweep unit
             self.pulse1.clock_length_counter();
-            eprint!("Current cycles: {}\n", self.cpu_cycles);
+            self.pulse1.clock_sweep();
+            //eprint!("Current cycles: {}\n", self.cpu_cycles);
         }
     }
 }
