@@ -74,9 +74,9 @@ fn main() {
     let audio_subsystem = sdl_context.audio().unwrap();
 
     let desired_spec = AudioSpecDesired {
-    freq: Some(44100),
-    channels: Some(1),
-    samples: Some(512)
+        freq: Some(44100),
+        channels: Some(1),
+        samples: Some(512)
     };
 
     let device: AudioQueue<f32> = audio_subsystem.open_queue::<f32, _>(None, &desired_spec).unwrap()    ;

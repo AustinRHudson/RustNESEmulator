@@ -1,5 +1,5 @@
 use sdl2::{audio::{AudioQueue, AudioSpecDesired}, sys::{False, SDL_Delay, SDL_PauseAudio, SDL_PauseAudioDevice, SDL_QueueAudio}};
-use std::{time::Duration};
+use std::{mem::transmute, time::Duration};
 use std::thread;
 
 pub struct Pulse {
@@ -25,6 +25,9 @@ pub struct Pulse {
     pub pulse_number: u8,
     pub current_sweep_divider_period: u8,
     pub sweep_muted: bool,
+    pub envelope_period: u8,
+    pub envelope_divider: u8,
+    pub envelope_start: bool,
 }
 
 impl Pulse {
@@ -52,6 +55,9 @@ impl Pulse {
             pulse_number: num,
             current_sweep_divider_period: 0,
             sweep_muted: false,
+            envelope_period: 0,
+            envelope_divider: 0,
+            envelope_start: false
         }
     }
 
@@ -70,30 +76,30 @@ impl Pulse {
     }
 
     pub fn clock_length_counter(&mut self) {
-        if(self.current_length_counter > 0 && !self.envelope_loop){
+        if self.current_length_counter > 0
+            && !self.envelope_loop
+        {
             self.current_length_counter -= 1;
-        }else {
-            if(!self.envelope_loop){
-                self.current_length_counter = self.length_counter_value;
-            }
         }
     }
 
     pub fn clock_envelope(&mut self) {
-        if(!self.constant_volume){
-            if(self.divider_period == 0){
-                self.divider_period = self.envelope_volume;
-                if(self.current_volume > 0){
-                    self.current_volume -= 1;
-                } else {
-                    if(self.envelope_loop){
-                        self.current_volume = 15;
-                    }
-                }
-            } else {
-                self.divider_period -= 1;
+        if self.envelope_start {
+            self.envelope_start = false;
+            self.current_volume = 15;
+            self.envelope_divider = self.envelope_period;
+            return;
+        }
+        if self.envelope_divider == 0 {
+            self.envelope_divider = self.envelope_period;
 
+            if self.current_volume > 0 {
+                self.current_volume -= 1;
+            } else if self.envelope_loop {
+                self.current_volume = 15;
             }
+        } else {
+            self.envelope_divider -= 1;
         }
     }
 
@@ -145,6 +151,7 @@ impl Pulse {
             31 => 30,
             _ => panic!("Invalid length counter value"),
         };
+        self.current_length_counter = self.length_counter_value;
     }
 
     pub fn get_sample(&self) -> f32 {
@@ -215,6 +222,8 @@ impl Pulse {
         self.constant_volume = (data & 0b00010000) != 0;
         self.envelope_volume = data & 0b00001111;
         self.divider_period = data & 0b00001111;
+        self.envelope_period = data & 0x0F;
+        self.envelope_divider = self.envelope_period;
         if(self.constant_volume){
             self.current_volume = self.envelope_volume;
         }
@@ -247,6 +256,7 @@ impl Pulse {
         }else{
             self.current_volume = 15;
         }
+        self.envelope_start = true;
         //eprint!("Current Volume: {}\n", self.current_volume);
     }
 }
@@ -255,9 +265,16 @@ pub struct Triangle {
     pub linear_counter_control: bool,
     pub reload_value: u8,
     pub timer_low: u8,
-    pub length_counter: u8,
+    pub length_counter_index: u8,
+    pub length_counter_value: u8,
+    pub current_length_counter: u8,
     pub timer_high: u8,
+    pub combined_timer: u16,
     pub reload_flag: bool,
+    pub current_timer: u16,
+    pub sequence_index: u8,
+    pub sequence_array: [u8; 32],
+    pub current_linear_counter: u8,
 }
 
 impl Triangle {
@@ -266,11 +283,115 @@ impl Triangle {
             linear_counter_control: false,
             reload_value: 0,
             timer_low: 0,
-            length_counter: 0,
+            length_counter_index: 0,
+            length_counter_value: 0,
+            current_length_counter: 0,
             timer_high: 0,
+            combined_timer: 0,
             reload_flag: false,
+            current_timer: 0,
+            sequence_index: 0,
+            sequence_array: [
+            15, 14, 13, 12, 11, 10, 9, 8,
+            7,  6,  5,  4,  3,  2, 1, 0,
+            0,  1, 2,  3,  4,  5, 6, 7,
+            8,  9, 10, 11, 12, 13, 14, 15],
+            current_linear_counter: 0,
         }
     }
+
+    pub fn tick(&mut self){
+        if(self.current_timer == 0){
+            self.current_timer = self.combined_timer;
+            self.sequence_index = (self.sequence_index + 1) % 32;
+        }else{
+            self.current_timer -= 1;
+        }
+    }
+
+    pub fn clock_linear_counter(&mut self){
+        if (self.reload_flag) {
+            self.current_linear_counter = self.reload_value;
+        } else if (self.current_linear_counter > 0) {
+            self.current_linear_counter -= 1;
+        }
+
+        if !self.linear_counter_control {
+            self.reload_flag = false;
+        }
+    }
+
+    pub fn clock_length_counter(&mut self){
+        if (!self.linear_counter_control && self.current_length_counter > 0)
+        {
+            self.current_length_counter -= 1;
+        }
+    }
+
+    pub fn get_sample(&mut self) -> f32{
+        if(self.current_length_counter == 0 || self.current_linear_counter == 0){
+            return 0.0;
+        }
+        return self.sequence_array[self.sequence_index as usize] as f32;
+    }
+
+    pub fn set_length_counter(&mut self, value: u8) {
+        self.length_counter_index = value;
+        self.length_counter_value = match self.length_counter_index {
+            0 => 10,
+            1 => 254,
+            2 => 20,
+            3 => 2,
+            4 => 40,
+            5 => 4,
+            6 => 80,
+            7 => 6,
+            8 => 160,
+            9 => 8,
+            10 => 60,
+            11 => 10,
+            12 => 14,
+            13 => 12,
+            14 => 26,
+            15 => 14,
+            16 => 12,
+            17 => 16,
+            18 => 24,
+            19 => 18,
+            20 => 48,
+            21 => 20,
+            22 => 96,
+            23 => 22,
+            24 => 192,
+            25 => 24,
+            26 => 72,
+            27 => 26,
+            28 => 16,
+            29 => 28,
+            30 => 32,
+            31 => 30,
+            _ => panic!("Invalid length counter value"),
+        };
+        self.current_length_counter = self.length_counter_value;
+    }
+
+    pub fn write_0x4008(&mut self, data: u8) {
+        self.linear_counter_control = (data & 0b1000_0000) != 0;
+
+        self.reload_value = data & 0b0111_1111;
+    }
+
+    pub fn write_0x400A(&mut self, data: u8){
+        self.timer_low = data;
+    }
+
+    pub fn write_0x400B(&mut self, data: u8){
+        self.set_length_counter(data >> 3 & 0b00011111);
+        self.timer_high = data & 0b0000_0111;
+        self.combined_timer = ((self.timer_high as u16) << 8) | self.timer_low as u16;
+        self.reload_flag = true;
+    }
+
 }
 
 pub struct Noise {
@@ -304,6 +425,8 @@ pub struct apu {
     pub device: AudioQueue<f32>,
     pub sample_data: Vec<f32>,
     pub sample_index: u16,
+    pub status_register: u8,
+    pub sample_timer: f64,
 }
 
 impl apu {
@@ -316,8 +439,10 @@ impl apu {
             //dmc: DMC::new(),
             cpu_cycles: 0,
             device: device,
-            sample_data: Vec::with_capacity(512),
+            sample_data: Vec::with_capacity(1024),
             sample_index: 0,
+            status_register: 0,
+            sample_timer: 0.0,
         }
     }
 
@@ -331,13 +456,37 @@ impl apu {
             self.pulse2.tick();
         }
 
-        if(self.cpu_cycles % 40 == 0){
+        self.triangle.tick();
+
+        self.sample_timer += 100_100.0 / 1_789_773.0;
+
+        if (self.cpu_cycles % 41 == 0){
             // Update triangle channel
+            self.sample_timer = 0.0;
             let mut volume: f32 = 0.0;
-            volume += self.pulse1.get_sample();
-            volume += self.pulse2.get_sample();
-            volume = 95.88 / ((8128.0 / volume) + 100.0);
-            self.sample_data.push(volume);
+            if(self.status_register & 0b00000001 > 0){
+                volume += self.pulse1.get_sample();
+            }
+            if(self.status_register & 0b00000010 > 0){
+                volume += self.pulse2.get_sample();
+            }
+            if(volume > 0.0){
+                volume = 95.88 / ((8128.0 / volume) + 100.0);
+            }
+            let mut triangle_volume: f32;
+            if(self.status_register & 0b00000100 > 0){
+               triangle_volume = self.triangle.get_sample();
+            }else{
+                triangle_volume = 0.0;
+            }
+            let mut tnd: f32;
+            if(triangle_volume > 0.0){
+                tnd = triangle_volume / 8227.0;
+                tnd = 159.79 / ((1.0 / tnd) + 100.0);
+            }else{
+                tnd = 0.0;
+            }
+            self.sample_data.push(volume + tnd);
             self.sample_index += 1;
             if(self.sample_index >= 512){
                 let samples_to_queue: Vec<f32> = self.sample_data.drain(..512).collect();
@@ -352,6 +501,8 @@ impl apu {
             //Quarter frame tick
             //Update envelope and linear counter
             self.pulse1.clock_envelope();
+            self.pulse2.clock_envelope();
+            self.triangle.clock_linear_counter();
         }
 
         if(self.cpu_cycles % 7457 == 0){
@@ -359,8 +510,15 @@ impl apu {
             //Update length counter and sweep unit
             self.pulse1.clock_length_counter();
             self.pulse1.clock_sweep();
+            self.pulse2.clock_length_counter();
+            self.pulse2.clock_sweep();
+            self.triangle.clock_length_counter();
             //eprint!("Current cycles: {}\n", self.cpu_cycles);
         }
+    }
+
+    pub fn write_status_register(&mut self, data: u8){
+        self.status_register = data;
     }
 }
 

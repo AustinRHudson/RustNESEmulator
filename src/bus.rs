@@ -244,9 +244,30 @@ impl Mem for Bus<'_> {
                 //eprintln!("4. {:08b}", data);
            }
 
-           0x4008..=0x4013 | 0x4015 => {
+           0x4008 => {
+                self.apu.triangle.write_0x4008(data);
+           }
+
+           0x4009 => {
+                //unused register
+           }
+
+           0x400A => {
+                self.apu.triangle.write_0x400A(data);
+           }
+
+           0x400B => {
+                self.apu.triangle.write_0x400B(data);
+           }
+
+           0x400C..=0x4013=> {
             //ignore APU 
-        }
+            }
+
+            0x4015 => {
+                self.apu.write_status_register(data);
+                //eprint!("Writing status register: {:08b}\n", data)
+            }
 
         0x4016 => {
             self.joypad.write_joypad(data);
