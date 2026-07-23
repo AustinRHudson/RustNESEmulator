@@ -156,6 +156,7 @@ impl Mem for Bus<'_> {
 
             0x4020..=0x6000 => {
                 todo!("expansion rom");
+                0
             }
 
 			0x8000..= 0xFFFF => self.read_prg_rom(addr),
@@ -260,7 +261,23 @@ impl Mem for Bus<'_> {
                 self.apu.triangle.write_0x400B(data);
            }
 
-           0x400C..=0x4013=> {
+           0x400C => {
+                self.apu.noise.write_0x400C(data);
+           }
+
+           0x400D => {
+                //Unused register
+           }
+
+           0x400E => {
+                self.apu.noise.write_0x400E(data);
+           }
+
+           0x400F => {
+                self.apu.noise.write_0x400F(data);
+           }
+
+           0x4010..=0x4013=> {
             //ignore APU 
             }
 

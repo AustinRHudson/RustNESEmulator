@@ -1,5 +1,5 @@
 use sdl2::{audio::{AudioQueue, AudioSpecDesired}, sys::{False, SDL_Delay, SDL_PauseAudio, SDL_PauseAudioDevice, SDL_QueueAudio}};
-use std::{mem::transmute, time::Duration};
+use std::{eprint, mem::transmute, time::Duration};
 use std::thread;
 
 pub struct Pulse {
@@ -432,7 +432,7 @@ impl Noise {
     }
 
     pub fn clock_shift_register(&mut self){
-        self.current_shift_timer += 1;
+        self.current_shift_timer += 2;
         if(self.current_shift_timer >= self.shift_timer){
             self.current_shift_timer = 0;
             let mut feedback: u16;
@@ -508,7 +508,7 @@ impl Noise {
     }
 
     pub fn write_0x400F(&mut self, data: u8){
-        self.set_length_counter(data);
+        self.set_length_counter((data >> 3)& 0b0001_1111);
         self.envelope_start = true;
     }
 
@@ -571,6 +571,7 @@ impl Noise {
         15 => 4068,
         _ => unreachable!(),
     };
+    self.current_shift_timer = 0;
     }
 }
 pub struct apu {
