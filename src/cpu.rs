@@ -89,6 +89,7 @@ impl opCode {
     pub enum InterruptType {
         NMI,
         BRK,
+        IRQ
     }
 
     #[derive(PartialEq, Eq)]
@@ -647,6 +648,7 @@ impl <'a>CPU<'a> {
 
             _ => {
                 todo!("addressing_mode: {:?}", mode);
+                0
             }
         }
     }

@@ -574,12 +574,64 @@ impl Noise {
     self.current_shift_timer = 0;
     }
 }
+
+pub struct dmc {
+    pub irq_flag: bool,
+    pub loop_flag: bool,
+    pub rate_index: u8,
+    pub load_counter: u8,
+    pub sample_address: u8,
+    pub sample_length: u8,
+
+}
+
+impl dmc {
+    pub fn new() -> Self{
+        dmc {
+            irq_flag: false,
+            loop_flag: false,
+            rate_index: 0,
+            load_counter: 0,
+            sample_address: 0,
+            sample_length: 0,
+        }
+    }
+
+    pub fn write_0x4010(&mut self, data:u8){
+        if(data & 0b1000_0000 > 0){
+            self.irq_flag = true;
+        }else{
+            self.irq_flag = false;
+        }
+
+        if(data & 0b0100_0000 > 0){
+            self.loop_flag = true;
+        }else{
+            self.loop_flag = false;
+        }
+
+        self.rate_index = data & 0b0000_1111;
+    }
+
+    pub fn write_0x4011(&mut self, data:u8){
+        self.load_counter = data & 0b0111_1111;
+    }
+
+    pub fn write_0x4012(&mut self, data:u8){
+        self.sample_address = data;
+    }
+
+    pub fn write_0x4013(&mut self, data:u8){
+        self.sample_length = data;
+    }
+}
+
 pub struct apu {
     pub pulse1: Pulse,
     pub pulse2: Pulse,
     pub triangle: Triangle,
     pub noise: Noise,
-    //pub dmc: DMC,
+    pub dmc: dmc,
     pub cpu_cycles: u64,
     pub device: AudioQueue<f32>,
     pub sample_data: Vec<f32>,
@@ -595,7 +647,7 @@ impl apu {
             pulse2: Pulse::new(2),
             triangle: Triangle::new(),
             noise: Noise::new(),
-            //dmc: DMC::new(),
+            dmc: dmc::new(),
             cpu_cycles: 0,
             device: device,
             sample_data: Vec::with_capacity(1024),

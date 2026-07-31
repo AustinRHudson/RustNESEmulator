@@ -113,6 +113,12 @@ fn bg_pallette(ppu: &ppu, attribute_table: &[u8], tile_column: usize, tile_row :
             Rect::new(0, 0, 256, scroll_y),
             0, (240 - scroll_y) as isize
         );
+    }else{
+        render_name_table(ppu, frame, 
+            second_nametable, 
+            Rect::new(0, 0, 256, scroll_y),
+            0, (240 - scroll_y) as isize
+        );
     }
 
     for i in (0..ppu.oam_data.len()).step_by(4).rev() {

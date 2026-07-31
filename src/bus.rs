@@ -277,9 +277,21 @@ impl Mem for Bus<'_> {
                 self.apu.noise.write_0x400F(data);
            }
 
-           0x4010..=0x4013=> {
-            //ignore APU 
-            }
+           0x4010 => {
+                self.apu.dmc.write_0x4010(data);
+           }
+
+           0x4011 => {
+                self.apu.dmc.write_0x4011(data);
+           }
+
+           0x4012 => {
+                self.apu.dmc.write_0x4012(data);
+           }
+
+           0x4013 => {
+                self.apu.dmc.write_0x4013(data);
+           }
 
             0x4015 => {
                 self.apu.write_status_register(data);
