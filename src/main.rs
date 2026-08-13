@@ -1,5 +1,4 @@
 #![allow(warnings)]
-extern crate lazy_static;
 pub mod cpu;
 mod bus;
 mod opcodes;
@@ -83,7 +82,21 @@ fn main() {
 
     device.resume();
     
-    let bytes: Vec<u8> = std::fs::read("src/TestRoms/mario.nes").unwrap();
+    let file = rfd::FileDialog::new()
+    .add_filter("NES ROM", &["nes"])
+    .set_title("Select NES ROM")
+    .pick_file();
+
+    let path = match file {
+        Some(path) => path,
+        None => {
+            println!("No ROM selected. Exiting.");
+            return;
+        }
+    };
+
+    let bytes = std::fs::read(&path)
+        .expect("Failed to read ROM file");
     let rom = Rom::new(&bytes).unwrap();
     let mut bus = Bus::new(rom, device, move |ppu: &NesPPU, joypad: &mut Joypad| {
         render::render(ppu, &mut frame);
